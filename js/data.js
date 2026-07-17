@@ -1,49 +1,80 @@
 /**
  * ============================================================
- *  THE GARAGE — bike ownership data
+ *  THE GARAGE — bike ownership data (the real list)
  * ============================================================
- *  ⚠️  SAMPLE DATA — placeholder bikes only.
- *  Replace every entry below with Dad's real list.
+ *  57 bikes owned since 2004, in the order they arrived.
  *
  *  Fields:
- *    make   – manufacturer (drives the brand colour, keep spelling consistent)
- *    model  – model name shown on cards and the timeline
- *    year   – model year of the bike itself
- *    cc     – engine displacement
- *    type   – Standard | Sport | Tourer | Adventure | Classic | Naked | ...
- *    from   – year he bought it
- *    to     – year he sold it, or null if he still owns it
- *    image  – path to a photo (e.g. "images/cb200.jpg"), or null for the
- *             built-in silhouette placeholder
- *    story  – one line about the bike (optional, shows on the card)
+ *    make     – manufacturer (drives the brand colour)
+ *    model    – model name shown on cards and charts
+ *    year     – model year of the bike, or null if not recorded
+ *    cc       – engine displacement (best identification — correct freely)
+ *    category – Off-road | Trials | Road | Adventure | Scooter | Classic | Mini
+ *    image    – path to a photo (e.g. "images/wr450.jpg"), or null for the
+ *               built-in silhouette placeholder
+ *    note     – optional one-liner shown on the card
  * ============================================================
  */
 
-const SAMPLE_DATA = true; // flips the "sample data" banner on
+const SAMPLE_DATA = false;
+const COLLECTING_SINCE = 2004;
 
 const BIKES = [
-  { make: "Honda",    model: "CB200",             year: 1974, cc: 198,  type: "Standard",  from: 1976, to: 1979, image: null,
-    story: "The first one. Bought for £120 and ridden everywhere, in all weather." },
-  { make: "Suzuki",   model: "GT250",             year: 1978, cc: 247,  type: "Sport",     from: 1979, to: 1982, image: null,
-    story: "Two-stroke scream. Blue haze followed it down every road." },
-  { make: "Honda",    model: "CB750F",            year: 1981, cc: 748,  type: "Standard",  from: 1982, to: 1986, image: null,
-    story: "The first big four. Suddenly motorways stopped being scary." },
-  { make: "Kawasaki", model: "GPZ900R",           year: 1985, cc: 908,  type: "Sport",     from: 1986, to: 1990, image: null,
-    story: "The Top Gun bike. Fastest thing he'd ever owned at the time." },
-  { make: "BMW",      model: "R80RT",             year: 1988, cc: 798,  type: "Tourer",    from: 1990, to: 1995, image: null,
-    story: "First tourer — two-up across France every summer." },
-  { make: "Ducati",   model: "916",               year: 1995, cc: 916,  type: "Sport",     from: 1995, to: 1998, image: null,
-    story: "The poster bike, made real. Gorgeous, temperamental, unforgettable." },
-  { make: "Triumph",  model: "Bonneville T100",   year: 1999, cc: 790,  type: "Classic",   from: 1999, to: 2005, image: null,
-    story: "A nod to the bikes of his youth — Sunday-morning café runs." },
-  { make: "Honda",    model: "Africa Twin XRV750",year: 2000, cc: 742,  type: "Adventure", from: 2001, to: 2007, image: null,
-    story: "Ran alongside the Bonnie. Green lanes, gravel and one trip to Morocco." },
-  { make: "Suzuki",   model: "SV650",             year: 2006, cc: 645,  type: "Naked",     from: 2007, to: 2010, image: null,
-    story: "The sensible one that turned out to be enormous fun." },
-  { make: "BMW",      model: "R1200GS",           year: 2010, cc: 1170, type: "Adventure", from: 2010, to: 2016, image: null,
-    story: "The do-everything bike. 40,000 miles and it never missed a beat." },
-  { make: "Triumph",  model: "Street Triple RS",  year: 2016, cc: 765,  type: "Naked",     from: 2016, to: 2021, image: null,
-    story: "Proof you don't slow down with age — you just get sharper." },
-  { make: "BMW",      model: "R1250RT",           year: 2021, cc: 1254, type: "Tourer",    from: 2021, to: null, image: null,
-    story: "The current steed. Comfort, torque, and still plenty of miles to go." },
-];
+  { make: "Yamaha",       model: "DT 125",                 year: null, cc: 125,  category: "Off-road" },
+  { make: "KTM",          model: "625 SXC",                year: null, cc: 625,  category: "Off-road" },
+  { make: "KTM",          model: "950 Adventure",          year: null, cc: 942,  category: "Adventure" },
+  { make: "KTM",          model: "625 SXC",                year: null, cc: 625,  category: "Off-road", note: "Second time around." },
+  { make: "KTM",          model: "400 EXC",                year: null, cc: 400,  category: "Off-road" },
+  { make: "KTM",          model: "450 EXC",                year: null, cc: 450,  category: "Off-road" },
+  { make: "Yamaha",       model: "WR 450",                 year: null, cc: 450,  category: "Off-road" },
+  { make: "Yamaha",       model: "WR 250",                 year: null, cc: 250,  category: "Off-road" },
+  { make: "Yamaha",       model: "WR 450",                 year: null, cc: 450,  category: "Off-road", note: "WR450 number two." },
+  { make: "Yamaha",       model: "WR 450",                 year: null, cc: 450,  category: "Off-road", note: "WR450 number three." },
+  { make: "Yamaha",       model: "WR 450",                 year: null, cc: 450,  category: "Off-road", note: "WR450 number four. A pattern emerges." },
+  { make: "Aprilia",      model: "Mana 850",               year: null, cc: 839,  category: "Road" },
+  { make: "Gas Gas",      model: "280",                    year: null, cc: 280,  category: "Trials" },
+  { make: "Vespa",        model: "125",                    year: null, cc: 125,  category: "Scooter" },
+  { make: "KTM",          model: "50",                     year: null, cc: 50,   category: "Mini" },
+  { make: "KTM",          model: "75",                     year: null, cc: 75,   category: "Mini" },
+  { make: "Suzuki",       model: "50 Quad",                year: null, cc: 50,   category: "Mini", note: "Four wheels snuck into the garage." },
+  { make: "Yamaha",       model: "R6",                     year: null, cc: 600,  category: "Road" },
+  { make: "Yamaha",       model: "R6",                     year: null, cc: 600,  category: "Road", note: "The second R6." },
+  { make: "Yamaha",       model: "YZF 450",                year: null, cc: 450,  category: "Off-road" },
+  { make: "Yamaha",       model: "YZ 250",                 year: 2008, cc: 250,  category: "Off-road" },
+  { make: "Suzuki",       model: "VanVan 125",             year: 2012, cc: 125,  category: "Road" },
+  { make: "Honda",        model: "ADV 750",                year: 2017, cc: 745,  category: "Scooter" },
+  { make: "Honda",        model: "CB 750 K",               year: 1982, cc: 748,  category: "Classic" },
+  { make: "Kawasaki",     model: "GT 550",                 year: null, cc: 553,  category: "Classic" },
+  { make: "Kawasaki",     model: "W 800",                  year: 2011, cc: 773,  category: "Classic" },
+  { make: "Vespa",        model: "GTS 300",                year: 2019, cc: 278,  category: "Scooter" },
+  { make: "Yamaha",       model: "TMax 250",               year: 2011, cc: 250,  category: "Scooter" },
+  { make: "Ossa",         model: "250 MAR",                year: 1977, cc: 244,  category: "Trials" },
+  { make: "Royal Enfield",model: "Bullet 350",             year: 1953, cc: 346,  category: "Classic", note: "The elder statesman of the garage." },
+  { make: "Sherco",       model: "300 SEF",                year: 2020, cc: 300,  category: "Off-road" },
+  { make: "KTM",          model: "350 EXC",                year: 2014, cc: 350,  category: "Off-road" },
+  { make: "Husqvarna",    model: "450 FE",                 year: 2019, cc: 450,  category: "Off-road" },
+  { make: "KTM",          model: "250 EXC",                year: 2008, cc: 250,  category: "Off-road" },
+  { make: "Yamaha",       model: "TY 80",                  year: 1977, cc: 80,   category: "Trials" },
+  { make: "Yamaha",       model: "TW 200",                 year: 1992, cc: 196,  category: "Off-road" },
+  { make: "Honda",        model: "CL 350",                 year: 1974, cc: 325,  category: "Classic" },
+  { make: "Moto Guzzi",   model: "California 850",         year: 1973, cc: 844,  category: "Classic" },
+  { make: "Honda",        model: "Forza 350",              year: 2021, cc: 330,  category: "Scooter" },
+  { make: "Ducati",       model: "Scrambler Desert Sled 800", year: 2021, cc: 803, category: "Road" },
+  { make: "MV Agusta",    model: "Turismo Veloce Lusso 800",  year: 2022, cc: 798, category: "Road" },
+  { make: "Simson",       model: "125",                    year: 1964, cc: 125,  category: "Classic" },
+  { make: "Indian",       model: "Chief Dark Horse",       year: 2022, cc: 1890, category: "Road", note: "The biggest engine ever to enter the garage." },
+  { make: "Bultaco",      model: "Sherpa 350",             year: 1976, cc: 326,  category: "Trials" },
+  { make: "Montesa",      model: "260 R",                  year: 2022, cc: 260,  category: "Trials" },
+  { make: "Suzuki",       model: "VanVan 125",             year: 2006, cc: 125,  category: "Road", note: "VanVan, the sequel." },
+  { make: "KTM",          model: "890 Adventure R",        year: 2024, cc: 889,  category: "Adventure" },
+  { make: "KTM",          model: "350 EXC Six Days",       year: 2024, cc: 350,  category: "Off-road" },
+  { make: "Honda",        model: "Monkey 125",             year: 2020, cc: 125,  category: "Mini" },
+  { make: "Suzuki",       model: "DE 800",                 year: 2023, cc: 776,  category: "Adventure" },
+  { make: "MV Agusta",    model: "F4 1000",                year: 2009, cc: 998,  category: "Road" },
+  { make: "Husqvarna",    model: "701",                    year: 2016, cc: 693,  category: "Off-road" },
+  { make: "Vespa",        model: "310",                    year: 2025, cc: 310,  category: "Scooter" },
+  { make: "Husqvarna",    model: "701 Rally",              year: 2024, cc: 693,  category: "Off-road" },
+  { make: "KTM",          model: "500 EXC (rally kit)",    year: 2025, cc: 511,  category: "Off-road" },
+  { make: "Moto Guzzi",   model: "Ambassador V7 800",      year: 1969, cc: 757,  category: "Classic" },
+  { make: "Honda",        model: "ADV 350",                year: 2026, cc: 330,  category: "Scooter", note: "The latest arrival." },
+].map((b) => ({ image: null, ...b }));

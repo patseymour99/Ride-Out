@@ -162,6 +162,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 24px; display: grid; gap: 24p
 .chip:hover { color: var(--text-primary); border-color: var(--baseline); }
 .chip[aria-pressed="true"] { color: var(--text-primary); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .chip .legend-swatch { width: 9px; height: 9px; }
+.select-group { display: flex; gap: 16px; flex-wrap: wrap; }
 .sort-label { color: var(--text-muted); font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
 .sort-label select {
   font-family: inherit; font-size: 13px; color: var(--text-primary);
@@ -226,5 +227,13 @@ th.num { text-align: right; }
 .bar-label-on { font-size: 11.5px; }
 .gridline { stroke: var(--grid); stroke-width: 1; }
 .baseline-line { stroke: var(--baseline); stroke-width: 1; }
+
+.chart-note { color: var(--text-muted); font-size: 12px; margin: 10px 0 0; }
+
+.seq-badge {
+  font-size: 11px; font-weight: 650; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px;
+  font-variant-numeric: tabular-nums;
+}
 
 .site-footer { max-width: 1160px; margin: 0 auto; padding: 8px 24px 40px; color: var(--text-muted); font-size: 13px; }

@@ -12,7 +12,7 @@
   <div class="header-inner">
     <div class="masthead">
       <h1>The Garage</h1>
-      <p class="tagline">A lifetime on two wheels — every bike Dad has ever owned</p>
+      <p class="tagline" id="taglineText">Every motorbike Dad has owned since 2004</p>
     </div>
     <div class="header-actions">
       <button id="tableToggle" class="ghost-btn" aria-pressed="false">Table view</button>
@@ -28,69 +28,85 @@
   <!-- KPI row -->
   <section class="kpi-row" id="kpiRow" aria-label="Headline stats"></section>
 
-  <!-- Ownership timeline -->
-  <section class="panel" aria-labelledby="timelineTitle">
+  <!-- Vintage timeline -->
+  <section class="panel" aria-labelledby="vintageTitle">
     <div class="panel-head">
-      <h2 id="timelineTitle">The ownership timeline</h2>
-      <p class="panel-sub">Every bike, from the day it arrived to the day it left</p>
+      <h2 id="vintageTitle">Seven decades of machinery</h2>
+      <p class="panel-sub">Every bike placed at its model year — from the 1953 Bullet to today</p>
     </div>
     <div id="brandLegend" class="legend" aria-label="Brand legend"></div>
-    <div class="chart-scroll"><div id="timelineChart" class="chart"></div></div>
+    <div class="chart-scroll"><div id="vintageChart" class="chart"></div></div>
+    <p class="chart-note" id="vintageNote"></p>
   </section>
 
   <!-- Garage grid -->
   <section class="panel" aria-labelledby="garageTitle">
     <div class="panel-head">
       <h2 id="garageTitle">The garage</h2>
-      <p class="panel-sub">Place cards for every machine</p>
+      <p class="panel-sub">A place card for every machine, in the order they arrived</p>
     </div>
     <div class="filter-row" id="filterRow">
-      <div class="chip-group" id="brandChips" role="group" aria-label="Filter by brand"></div>
-      <label class="sort-label">Sort
-        <select id="sortSelect">
-          <option value="from">Year acquired</option>
-          <option value="cc">Engine size</option>
-          <option value="tenure">Longest kept</option>
-        </select>
-      </label>
+      <div class="chip-group" id="categoryChips" role="group" aria-label="Filter by category"></div>
+      <div class="select-group">
+        <label class="sort-label">Marque
+          <select id="brandSelect"><option value="All">All</option></select>
+        </label>
+        <label class="sort-label">Sort
+          <select id="sortSelect">
+            <option value="seq">Order of arrival</option>
+            <option value="cc">Engine size</option>
+            <option value="year">Vintage</option>
+          </select>
+        </label>
+      </div>
     </div>
     <div id="garageGrid" class="garage-grid"></div>
   </section>
 
   <!-- Charts -->
   <div class="chart-duo">
-    <section class="panel" aria-labelledby="ccTitle">
+    <section class="panel" aria-labelledby="spreeTitle">
       <div class="panel-head">
-        <h2 id="ccTitle">Engine size through the years</h2>
-        <p class="panel-sub">Displacement of each bike at the year he bought it</p>
+        <h2 id="spreeTitle">The buying spree</h2>
+        <p class="panel-sub">Engine size of each arrival, 1st to 57th</p>
       </div>
-      <div class="chart-scroll"><div id="ccChart" class="chart"></div></div>
+      <div class="chart-scroll"><div id="spreeChart" class="chart"></div></div>
     </section>
-    <section class="panel" aria-labelledby="stableTitle">
+    <section class="panel" aria-labelledby="categoryTitle">
       <div class="panel-head">
-        <h2 id="stableTitle">Bikes in the garage</h2>
-        <p class="panel-sub">How many he owned at once, year by year</p>
+        <h2 id="categoryTitle">What kind of rider?</h2>
+        <p class="panel-sub">The collection by category</p>
       </div>
-      <div class="chart-scroll"><div id="stableChart" class="chart"></div></div>
+      <div id="categoryChart" class="chart"></div>
     </section>
   </div>
 
   <div class="chart-duo">
     <section class="panel" aria-labelledby="brandTitle">
       <div class="panel-head">
-        <h2 id="brandTitle">The brand tally</h2>
-        <p class="panel-sub">Which marques kept pulling him back</p>
+        <h2 id="brandTitle">The marque tally</h2>
+        <p class="panel-sub">Twenty makers, two clear favourites</p>
       </div>
       <div id="brandChart" class="chart"></div>
     </section>
     <section class="panel" aria-labelledby="decadeTitle">
       <div class="panel-head">
-        <h2 id="decadeTitle">Bikes per decade</h2>
-        <p class="panel-sub">New arrivals by the decade he bought them</p>
+        <h2 id="decadeTitle">Vintages by decade</h2>
+        <p class="panel-sub">When the bikes themselves were built</p>
       </div>
       <div id="decadeChart" class="chart"></div>
+      <p class="chart-note" id="decadeNote"></p>
     </section>
   </div>
+
+  <!-- Repeat purchases -->
+  <section class="panel" aria-labelledby="repeatTitle">
+    <div class="panel-head">
+      <h2 id="repeatTitle">Bought it again</h2>
+      <p class="panel-sub">Models he liked enough to own more than once</p>
+    </div>
+    <div id="repeatRow" class="records-row"></div>
+  </section>
 
   <!-- Records -->
   <section class="panel" aria-labelledby="recordsTitle">
@@ -111,7 +127,8 @@
 </main>
 
 <footer class="site-footer">
-  <p>Built for Dad. Add a new bike any time in <code>js/data.js</code> — the dashboard redraws itself.</p>
+  <p>Built for Dad. Add the next bike any time in <code>js/data.js</code> — the dashboard redraws itself.
+     Drop photos into <code>images/</code> and point each bike's <code>image</code> field at them.</p>
 </footer>
 
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
