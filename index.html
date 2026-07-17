@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Garage — A Lifetime on Two Wheels</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="masthead">
+      <h1>The Garage</h1>
+      <p class="tagline">A lifetime on two wheels — every bike Dad has ever owned</p>
+    </div>
+    <div class="header-actions">
+      <button id="tableToggle" class="ghost-btn" aria-pressed="false">Table view</button>
+      <button id="themeToggle" class="ghost-btn" aria-label="Toggle light/dark theme">◐ Theme</button>
+    </div>
+  </div>
+  <div id="sampleBanner" class="sample-banner" hidden>
+    Showing <strong>sample data</strong> — waiting for the real list. Edit <code>js/data.js</code> to replace it.
+  </div>
+</header>
+
+<main>
+  <!-- KPI row -->
+  <section class="kpi-row" id="kpiRow" aria-label="Headline stats"></section>
+
+  <!-- Ownership timeline -->
+  <section class="panel" aria-labelledby="timelineTitle">
+    <div class="panel-head">
+      <h2 id="timelineTitle">The ownership timeline</h2>
+      <p class="panel-sub">Every bike, from the day it arrived to the day it left</p>
+    </div>
+    <div id="brandLegend" class="legend" aria-label="Brand legend"></div>
+    <div class="chart-scroll"><div id="timelineChart" class="chart"></div></div>
+  </section>
+
+  <!-- Garage grid -->
+  <section class="panel" aria-labelledby="garageTitle">
+    <div class="panel-head">
+      <h2 id="garageTitle">The garage</h2>
+      <p class="panel-sub">Place cards for every machine</p>
+    </div>
+    <div class="filter-row" id="filterRow">
+      <div class="chip-group" id="brandChips" role="group" aria-label="Filter by brand"></div>
+      <label class="sort-label">Sort
+        <select id="sortSelect">
+          <option value="from">Year acquired</option>
+          <option value="cc">Engine size</option>
+          <option value="tenure">Longest kept</option>
+        </select>
+      </label>
+    </div>
+    <div id="garageGrid" class="garage-grid"></div>
+  </section>
+
+  <!-- Charts -->
+  <div class="chart-duo">
+    <section class="panel" aria-labelledby="ccTitle">
+      <div class="panel-head">
+        <h2 id="ccTitle">Engine size through the years</h2>
+        <p class="panel-sub">Displacement of each bike at the year he bought it</p>
+      </div>
+      <div class="chart-scroll"><div id="ccChart" class="chart"></div></div>
+    </section>
+    <section class="panel" aria-labelledby="stableTitle">
+      <div class="panel-head">
+        <h2 id="stableTitle">Bikes in the garage</h2>
+        <p class="panel-sub">How many he owned at once, year by year</p>
+      </div>
+      <div class="chart-scroll"><div id="stableChart" class="chart"></div></div>
+    </section>
+  </div>
+
+  <div class="chart-duo">
+    <section class="panel" aria-labelledby="brandTitle">
+      <div class="panel-head">
+        <h2 id="brandTitle">The brand tally</h2>
+        <p class="panel-sub">Which marques kept pulling him back</p>
+      </div>
+      <div id="brandChart" class="chart"></div>
+    </section>
+    <section class="panel" aria-labelledby="decadeTitle">
+      <div class="panel-head">
+        <h2 id="decadeTitle">Bikes per decade</h2>
+        <p class="panel-sub">New arrivals by the decade he bought them</p>
+      </div>
+      <div id="decadeChart" class="chart"></div>
+    </section>
+  </div>
+
+  <!-- Records -->
+  <section class="panel" aria-labelledby="recordsTitle">
+    <div class="panel-head">
+      <h2 id="recordsTitle">Garage records</h2>
+      <p class="panel-sub">The superlatives</p>
+    </div>
+    <div id="recordsRow" class="records-row"></div>
+  </section>
+
+  <!-- Table view -->
+  <section class="panel" id="tablePanel" hidden aria-labelledby="tableTitle">
+    <div class="panel-head">
+      <h2 id="tableTitle">Every bike, on the record</h2>
+    </div>
+    <div class="table-wrap"><table id="bikeTable"></table></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Built for Dad. Add a new bike any time in <code>js/data.js</code> — the dashboard redraws itself.</p>
+</footer>
+
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
