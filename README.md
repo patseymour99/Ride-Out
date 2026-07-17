@@ -31,8 +31,24 @@ order it arrived:
 
 - `year` is the bike's model year (`null` if unrecorded).
 - `category` is one of: Off-road, Trials, Road, Adventure, Scooter, Classic, Mini.
-- `image: null` renders a consistent category-matched silhouette; drop photos
-  into `images/` and point `image` at them for the real thing.
 - Engine sizes and model identifications are best-effort — correct them freely.
 
 Every chart, stat, and record recomputes automatically from the list.
+
+## Bike photos
+
+Cards show real photos, resolved in this priority order:
+
+1. **Your own photo** — `image: "images/my-bullet.jpg"` in `js/data.js`, or just
+   drop a file at `images/bike-<nn>.jpg` (nn = the bike's arrival number).
+2. **A permanent downloaded photo** — run `node scripts/fetch_images.mjs` on a
+   machine with internet; it saves a Wikimedia Commons photo per bike into
+   `images/` with an attribution list.
+3. **A live Wikimedia Commons lookup** — with no local file, the page finds a
+   photo of the model itself at view time (cached per browser; each photo links
+   to its Commons source page). The `search` field in `js/data.js` tunes the
+   query per bike.
+4. **The livery illustration** — the offline fallback when nothing else resolves.
+
+Wikimedia photos show *the model*, not Dad's actual bike — swapping in real
+photos of his machines via option 1 always wins.

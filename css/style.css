@@ -181,6 +181,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 24px; display: grid; gap: 24p
 }
 .bike-card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,0.12); }
 .bike-card .card-media { aspect-ratio: 16/10; background: var(--page); border-bottom: 1px solid var(--border); }
+.bike-card .card-media a { display: block; width: 100%; height: 100%; }
 .bike-card .card-media img, .bike-card .card-media svg { width: 100%; height: 100%; object-fit: cover; display: block; }
 .bike-card .card-body { padding: 14px 16px 16px; }
 .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

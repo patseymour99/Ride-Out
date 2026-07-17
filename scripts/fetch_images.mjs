@@ -22,9 +22,9 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dataSrc = await readFile(path.join(root, "js", "data.js"), "utf8");
 
-// Pull make/model pairs out of data.js without executing browser globals.
-const bikes = [...dataSrc.matchAll(/make:\s*"([^"]+)",\s*model:\s*"([^"]+)",\s*year:\s*(\d+|null)/g)]
-  .map(([, make, model, year], i) => ({ seq: i + 1, make, model, year: year === "null" ? null : year }));
+// Pull make/model/search out of data.js without executing browser globals.
+const bikes = [...dataSrc.matchAll(/make:\s*"([^"]+)",\s*model:\s*"([^"]+)",\s*year:\s*(?:\d+|null),\s*cc:\s*\d+,\s*category:\s*"[^"]+",\s*search:\s*"([^"]+)"/g)]
+  .map(([, make, model, search], i) => ({ seq: i + 1, make, model, search }));
 
 if (bikes.length === 0) {
   console.error("Could not parse any bikes out of js/data.js");
@@ -39,7 +39,7 @@ let ok = 0;
 
 for (const b of bikes) {
   const file = `bike-${String(b.seq).padStart(2, "0")}.jpg`;
-  const query = `${b.make} ${b.model} motorcycle`;
+  const query = `${b.search || `${b.make} ${b.model}`} motorcycle`;
   try {
     const url = `${API}?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1&gsrnamespace=6&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`;
     const res = await fetch(url, { headers: { "User-Agent": "garage-dashboard/1.0 (personal project)" } });

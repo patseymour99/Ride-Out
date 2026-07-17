@@ -316,6 +316,65 @@
     return svg;
   }
 
+  /* ---------- real photos via Wikimedia Commons ---------- */
+
+  // Each card asks the Commons API (CORS-enabled) for a real photo of the
+  // model, picked from the bike's tuned `search` term. Choices are cached in
+  // localStorage so the lookup happens once per browser. Offline, or when a
+  // model has no usable photo, the card keeps its livery illustration.
+  const IMG_CACHE_KEY = "garage-img-cache-v1";
+  let imgCache = {};
+  try { imgCache = JSON.parse(localStorage.getItem(IMG_CACHE_KEY) || "{}"); } catch { /* fresh cache */ }
+  const photoLookups = new Map();
+
+  function resolvePhoto(b) {
+    const key = b.search || `${b.make} ${b.model}`;
+    if (key in imgCache) return Promise.resolve(imgCache[key]);
+    if (photoLookups.has(key)) return photoLookups.get(key);
+    const q = `${key} motorcycle`;
+    const url = "https://commons.wikimedia.org/w/api.php" +
+      "?action=query&generator=search" +
+      `&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=8` +
+      "&prop=imageinfo&iiprop=url|mime&iiurlwidth=800&format=json&origin=*";
+    const p = fetch(url)
+      .then((res) => res.json())
+      .then((json) => {
+        const pages = json && json.query && json.query.pages ? Object.values(json.query.pages) : [];
+        pages.sort((a, b2) => a.index - b2.index);
+        const pick = pages.map((pg) => pg.imageinfo && pg.imageinfo[0])
+          .find((i) => i && i.mime === "image/jpeg");
+        imgCache[key] = pick ? { url: pick.thumburl || pick.url, page: pick.descriptionurl } : null;
+        try { localStorage.setItem(IMG_CACHE_KEY, JSON.stringify(imgCache)); } catch { /* storage full */ }
+        return imgCache[key];
+      })
+      .catch(() => undefined); // network error: don't cache, retry next visit
+    photoLookups.set(key, p);
+    return p;
+  }
+
+  function attachPhoto(media, b) {
+    // Priority: explicit/local file beats the web photo; illustration is the floor.
+    const local = b.image || `images/bike-${String(b.seq).padStart(2, "0")}.jpg`;
+    const limg = el("img", { src: local, alt: `${b.make} ${b.model}` });
+    limg.addEventListener("load", () => {
+      media.dataset.src = "local";
+      media.replaceChildren(limg);
+    });
+    resolvePhoto(b).then((hit) => {
+      if (!hit || media.dataset.src === "local" || !media.isConnected) return;
+      const rimg = el("img", {
+        src: hit.url, alt: `${b.make} ${b.model}`,
+        title: `${b.make} ${b.model} — photo via Wikimedia Commons (click for source)`,
+      });
+      rimg.addEventListener("load", () => {
+        if (media.dataset.src === "local") return;
+        const link = el("a", { href: hit.page, target: "_blank", rel: "noopener" });
+        link.append(rimg);
+        media.replaceChildren(link);
+      });
+    });
+  }
+
   /* ---------- garage grid ---------- */
 
   let activeCategory = "All";
@@ -358,12 +417,10 @@
     list.forEach((b) => {
       const card = el("article", { class: "bike-card" });
       const media = el("div", { class: "card-media" });
-      // Start with the illustration; upgrade to a photo if one exists —
-      // either the explicit image field or scripts/fetch_images.mjs output.
+      // Start with the illustration; upgrade to a real photo — a local file
+      // (b.image or scripts/fetch_images.mjs output) or a Wikimedia lookup.
       media.append(silhouette(b));
-      const src = b.image || `images/bike-${String(b.seq).padStart(2, "0")}.jpg`;
-      const img = el("img", { src, alt: `${b.make} ${b.model}`, loading: "lazy" });
-      img.addEventListener("load", () => { media.replaceChildren(img); });
+      attachPhoto(media, b);
       const body = el("div", { class: "card-body" });
       const top = el("div", { class: "card-top" });
       const chip = el("span", { class: "brand-chip" });
