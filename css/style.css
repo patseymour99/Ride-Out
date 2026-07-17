@@ -191,7 +191,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 24px; display: grid; gap: 24p
 }
 .bike-card h3 { margin: 8px 0 2px; font-size: 16.5px; }
 .card-years { color: var(--text-secondary); font-size: 13px; }
-.card-specs { display: flex; gap: 12px; margin-top: 8px; color: var(--text-muted); font-size: 12.5px; }
+.card-specs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; color: var(--text-muted); font-size: 12.5px; }
 .card-story { margin: 10px 0 0; color: var(--text-secondary); font-size: 13px; font-style: italic; }
 
 /* ---------- records ---------- */

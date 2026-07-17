@@ -72,7 +72,7 @@
   }
   const bikeTip = (b) =>
     `<div class="tt-title">#${b.seq} · ${b.make} ${b.model}</div>
-     <div class="tt-sub">${b.year !== null ? b.year + " · " : ""}${b.cc}cc · ${b.category}</div>`;
+     <div class="tt-sub">${b.year !== null ? b.year + " · " : ""}${b.cc}cc ${b.engine ? b.engine.toLowerCase() : ""} · ${b.category}</div>`;
 
   /* ---------- theme toggle ---------- */
 
@@ -179,7 +179,32 @@
       `${unknown} bikes without a recorded model year appear in the garage below but not on this axis. Hover any dot for the bike.`;
   }
 
-  /* ---------- bike silhouettes (consistent placeholders by category) ---------- */
+  /* ---------- bike illustrations (consistent style, authentic liveries) ---------- */
+
+  // Real-world brand colours, used only for the card artwork — the charts keep
+  // the validated categorical palette, carried by the brand chip and legend.
+  const LIVERY = {
+    "Yamaha":        { body: "#1c3faf", accent: "#e8eef8" },
+    "KTM":           { body: "#f26a1b", accent: "#1f1f1f" },
+    "Honda":         { body: "#c62f2f", accent: "#f0f0ee" },
+    "Suzuki":        { body: "#e8b40a", accent: "#20408a" },
+    "Husqvarna":     { body: "#e4e6e4", accent: "#243f8f" },
+    "Vespa":         { body: "#7cc4ad", accent: "#efeadb" },
+    "Kawasaki":      { body: "#3f9f34", accent: "#141414" },
+    "Moto Guzzi":    { body: "#8c2430", accent: "#d9cfa8" },
+    "MV Agusta":     { body: "#c22539", accent: "#c8ccd2" },
+    "Ducati":        { body: "#cc2229", accent: "#f2f2f0" },
+    "Aprilia":       { body: "#454a52", accent: "#c22539" },
+    "Gas Gas":       { body: "#d1342f", accent: "#f2f2f0" },
+    "Ossa":          { body: "#2e7d4f", accent: "#e9e4c8" },
+    "Royal Enfield": { body: "#3a5f46", accent: "#d9b45b" },
+    "Sherco":        { body: "#2456c4", accent: "#f5d31f" },
+    "Simson":        { body: "#66809f", accent: "#e6e2d6" },
+    "Indian":        { body: "#3c3c40", accent: "#7d1f24" },
+    "Bultaco":       { body: "#c2382e", accent: "#d9d9d9" },
+    "Montesa":       { body: "#b3252e", accent: "#f0f0ee" },
+  };
+  const livery = (make) => LIVERY[make] || { body: "var(--text-muted)", accent: "var(--surface-1)" };
 
   function silWheels(g, pairs, r, ink) {
     pairs.forEach(([cx, cy]) => {
@@ -188,19 +213,29 @@
     });
   }
 
-  function silhouette(category, make) {
-    const c = brandColor(make);
+  // Body panels get a faint ink outline so light liveries (Husqvarna white,
+  // Suzuki yellow) stay crisp on the light surface.
+  function bodyPath(d, fill) {
+    const p = svgEl("path", { d, fill, stroke: "var(--text-primary)", "stroke-opacity": 0.25, "stroke-width": 1.5 });
+    return p;
+  }
+
+  function silhouette(b) {
+    const { body, accent } = livery(b.make);
     const ink = "var(--text-primary)";
-    const svg = svgEl("svg", { viewBox: "0 0 320 200", role: "img", "aria-label": `${make} ${category} silhouette placeholder` });
+    const svg = svgEl("svg", { viewBox: "0 0 320 200", role: "img", "aria-label": `${b.make} ${b.model} illustration` });
     const g = svgEl("g", { fill: "none", stroke: ink, "stroke-linecap": "round" });
     g.style.opacity = "0.82";
     g.append(svgEl("line", { x1: 20, y1: 188, x2: 300, y2: 188, "stroke-width": 2, class: "baseline-line" }));
 
     const kind =
-      category === "Scooter" ? "scooter" :
-      category === "Road" ? "sport" :
-      category === "Classic" ? "classic" :
-      category === "Mini" ? "mini" : "offroad"; // Off-road, Trials, Adventure
+      b.cc >= 1500 ? "cruiser" :
+      b.category === "Trials" ? "trials" :
+      b.category === "Adventure" ? "adventure" :
+      b.category === "Scooter" ? "scooter" :
+      b.category === "Road" ? "sport" :
+      b.category === "Classic" ? "classic" :
+      b.category === "Mini" ? "mini" : "offroad";
 
     if (kind === "offroad") {
       silWheels(g, [[78, 144], [246, 144]], 36, ink);
@@ -211,26 +246,59 @@
       g.append(svgEl("rect", { x: 140, y: 100, width: 44, height: 28, rx: 8, fill: ink, stroke: "none" }));
       g.append(svgEl("path", { d: "M150,132 L238,118", "stroke-width": 6 }));
       svg.append(g);
-      svg.append(svgEl("path", { d: "M150,78 Q176,62 202,73 Q205,87 190,92 Q163,94 151,90 Z", fill: c }));
+      svg.append(bodyPath("M150,78 Q176,62 202,73 Q205,87 190,92 Q163,94 151,90 Z", body));
+      svg.append(svgEl("rect", { x: 92, y: 102, width: 26, height: 16, rx: 5, fill: accent, "fill-opacity": 0.9 }));
+    } else if (kind === "trials") {
+      silWheels(g, [[78, 146], [246, 146]], 34, ink);
+      g.append(svgEl("path", { d: "M246,146 L216,54 L194,46", "stroke-width": 6 }));
+      g.append(svgEl("path", { d: "M184,80 Q220,66 256,80", "stroke-width": 6 }));
+      g.append(svgEl("path", { d: "M214,62 Q150,74 84,112", "stroke-width": 7 }));
+      g.append(svgEl("path", { d: "M78,146 L140,106 M196,96 L246,146", "stroke-width": 5 }));
+      g.append(svgEl("rect", { x: 138, y: 104, width: 40, height: 26, rx: 8, fill: ink, stroke: "none" }));
+      svg.append(g);
+      svg.append(bodyPath("M158,84 Q180,72 200,80 Q202,92 188,96 Q168,96 158,92 Z", body));
+      svg.append(svgEl("rect", { x: 100, y: 104, width: 24, height: 15, rx: 5, fill: accent, "fill-opacity": 0.9 }));
+    } else if (kind === "adventure") {
+      silWheels(g, [[78, 146], [246, 146]], 35, ink);
+      g.append(svgEl("path", { d: "M246,146 L218,56 L198,48", "stroke-width": 6 }));
+      g.append(svgEl("path", { d: "M212,60 L226,34", "stroke-width": 5 }));
+      g.append(svgEl("path", { d: "M196,86 Q230,74 258,88", "stroke-width": 6 }));
+      g.append(svgEl("path", { d: "M64,96 Q118,82 140,86 L142,98 Q118,98 66,106 Z", fill: ink, stroke: "none" }));
+      g.append(svgEl("path", { d: "M78,146 L150,94 M198,92 L246,146", "stroke-width": 5 }));
+      g.append(svgEl("rect", { x: 142, y: 102, width: 46, height: 28, rx: 8, fill: ink, stroke: "none" }));
+      g.append(svgEl("path", { d: "M152,134 L240,122", "stroke-width": 6 }));
+      svg.append(g);
+      svg.append(bodyPath("M138,76 Q176,56 206,72 Q210,90 192,96 Q156,100 140,94 Z", body));
+      svg.append(svgEl("rect", { x: 84, y: 106, width: 30, height: 26, rx: 5, fill: accent, "fill-opacity": 0.9 }));
     } else if (kind === "sport") {
       silWheels(g, [[74, 148], [250, 148]], 34, ink);
       g.append(svgEl("path", { d: "M250,148 L228,72", "stroke-width": 6 }));
       g.append(svgEl("path", { d: "M220,70 L238,52", "stroke-width": 5 }));
-      g.append(svgEl("path", { d: "M70,92 Q98,82 124,88 L126,100 Q96,104 72,100 Z", fill: ink, stroke: "none" }));
       g.append(svgEl("path", { d: "M74,148 L140,100 M210,96 L250,148", "stroke-width": 5 }));
       g.append(svgEl("rect", { x: 148, y: 104, width: 48, height: 30, rx: 8, fill: ink, stroke: "none" }));
       g.append(svgEl("path", { d: "M160,140 L246,130", "stroke-width": 6 }));
       svg.append(g);
-      svg.append(svgEl("path", { d: "M118,86 Q170,58 226,72 L244,106 Q196,90 148,100 Q124,98 118,86 Z", fill: c }));
+      svg.append(svgEl("path", { d: "M70,92 Q98,82 124,88 L126,100 Q96,104 72,100 Z", fill: accent, "fill-opacity": 0.9, stroke: ink, "stroke-opacity": 0.25, "stroke-width": 1.5 }));
+      svg.append(bodyPath("M118,86 Q170,58 226,72 L244,106 Q196,90 148,100 Q124,98 118,86 Z", body));
+    } else if (kind === "cruiser") {
+      silWheels(g, [[70, 150], [254, 150]], 34, ink);
+      g.append(svgEl("path", { d: "M254,150 L210,70 L184,56", "stroke-width": 6 }));
+      g.append(svgEl("path", { d: "M78,104 Q102,98 122,102 L122,114 Q96,118 80,114 Z", fill: ink, stroke: "none" }));
+      g.append(svgEl("path", { d: "M70,150 L136,110 M200,104 L254,150", "stroke-width": 5 }));
+      g.append(svgEl("rect", { x: 136, y: 112, width: 56, height: 30, rx: 8, fill: ink, stroke: "none" }));
+      g.append(svgEl("path", { d: "M150,148 L262,144", "stroke-width": 7 }));
+      svg.append(g);
+      svg.append(bodyPath("M120,96 Q160,82 198,92 Q200,108 184,112 Q144,114 122,108 Z", body));
+      svg.append(svgEl("path", { d: "M128,101 L190,101", stroke: accent, "stroke-width": 3, fill: "none", "stroke-linecap": "round" }));
     } else if (kind === "scooter") {
       silWheels(g, [[86, 160], [240, 160]], 24, ink);
       g.append(svgEl("path", { d: "M240,160 L214,60 L190,52", "stroke-width": 6 }));
       g.append(svgEl("path", { d: "M206,66 Q186,74 182,112 Q180,126 172,130", "stroke-width": 7 }));
       g.append(svgEl("path", { d: "M70,90 Q104,82 138,90 L138,102 L72,102 Z", fill: ink, stroke: "none" }));
       svg.append(g);
-      svg.append(svgEl("path", { d: "M54,130 Q52,104 86,100 L148,102 Q170,106 176,124 L148,136 Q92,146 54,130 Z", fill: c }));
+      svg.append(bodyPath("M54,130 Q52,104 86,100 L148,102 Q170,106 176,124 L148,136 Q92,146 54,130 Z", body));
+      svg.append(svgEl("path", { d: "M64,122 Q104,132 150,124", stroke: accent, "stroke-width": 3.5, fill: "none", "stroke-linecap": "round" }));
     } else { // classic & mini
-      const s = kind === "mini" ? 0.68 : 1;
       const gg = svgEl("g", { transform: kind === "mini" ? "translate(50,60) scale(0.68)" : "" });
       const inner = svgEl("g", { fill: "none", stroke: ink, "stroke-linecap": "round" });
       inner.style.opacity = "0.82";
@@ -241,8 +309,8 @@
       inner.append(svgEl("path", { d: "M158,138 L246,143", "stroke-width": 6 }));
       inner.append(svgEl("path", { d: "M84,88 Q110,78 130,85 L132,97 Q104,101 84,97 Z", fill: ink, stroke: "none" }));
       gg.append(inner);
-      gg.append(svgEl("path", { d: "M130,84 Q162,64 198,78 Q204,92 190,99 Q152,104 131,97 Z", fill: c }));
-      // mini keeps the full-size ground line drawn on g above
+      gg.append(bodyPath("M130,84 Q162,64 198,78 Q204,92 190,99 Q152,104 131,97 Z", body));
+      gg.append(svgEl("path", { d: "M140,88 Q166,74 192,84", stroke: accent, "stroke-width": 3, fill: "none", "stroke-linecap": "round" }));
       svg.append(g, gg);
     }
     return svg;
@@ -290,11 +358,12 @@
     list.forEach((b) => {
       const card = el("article", { class: "bike-card" });
       const media = el("div", { class: "card-media" });
-      if (b.image) {
-        media.append(el("img", { src: b.image, alt: `${b.make} ${b.model}`, loading: "lazy" }));
-      } else {
-        media.append(silhouette(b.category, b.make));
-      }
+      // Start with the illustration; upgrade to a photo if one exists —
+      // either the explicit image field or scripts/fetch_images.mjs output.
+      media.append(silhouette(b));
+      const src = b.image || `images/bike-${String(b.seq).padStart(2, "0")}.jpg`;
+      const img = el("img", { src, alt: `${b.make} ${b.model}`, loading: "lazy" });
+      img.addEventListener("load", () => { media.replaceChildren(img); });
       const body = el("div", { class: "card-body" });
       const top = el("div", { class: "card-top" });
       const chip = el("span", { class: "brand-chip" });
@@ -307,7 +376,7 @@
       body.append(el("div", { class: "card-years" },
         b.year !== null ? `${b.year} model` : "model year unrecorded"));
       const specs = el("div", { class: "card-specs" });
-      specs.append(el("span", null, `${b.cc}cc`), el("span", null, b.category));
+      specs.append(el("span", null, `${b.cc}cc`), el("span", null, b.engine), el("span", null, b.category));
       body.append(specs);
       if (b.note) body.append(el("p", { class: "card-story" }, `“${b.note}”`));
       card.append(media, body);
@@ -495,7 +564,7 @@
   function renderTable() {
     const table = $("#bikeTable");
     const head = el("tr");
-    [["#", true], ["Make", false], ["Model", false], ["Model year", true], ["cc", true], ["Category", false]]
+    [["#", true], ["Make", false], ["Model", false], ["Model year", true], ["cc", true], ["Engine", false], ["Category", false]]
       .forEach(([h, num]) => head.append(el("th", { class: num ? "num" : "" }, h)));
     const thead = el("thead"); thead.append(head);
     const tbody = el("tbody");
@@ -507,6 +576,7 @@
         el("td", null, b.model),
         el("td", { class: "num" }, b.year !== null ? String(b.year) : "—"),
         el("td", { class: "num" }, String(b.cc)),
+        el("td", null, b.engine),
         el("td", null, b.category)
       );
       tbody.append(tr);
