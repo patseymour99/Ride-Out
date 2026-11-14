@@ -149,14 +149,14 @@ const ZONES = [
 /* ---------- Places ----------
    lines: subway bullets to show. go: how to get there from the hotel. */
 const CATS = {
-  festive: { label: "Festive", glyph: "🎄" },
-  sights: { label: "Sights", glyph: "🏙️" },
-  views: { label: "Views", glyph: "🔭" },
-  museums: { label: "Museums", glyph: "🖼️" },
-  walks: { label: "Parks & walks", glyph: "🌳" },
-  food: { label: "Food", glyph: "🍽️" },
-  shops: { label: "Shopping", glyph: "🛍️" },
-  shows: { label: "Shows", glyph: "🎭" },
+  festive: { label: "Festive", icon: "tree" },
+  sights: { label: "Sights", icon: "camera" },
+  views: { label: "Views", icon: "eye" },
+  museums: { label: "Museums", icon: "museum" },
+  walks: { label: "Parks & walks", icon: "leaf" },
+  food: { label: "Food", icon: "food" },
+  shops: { label: "Shopping", icon: "bag" },
+  shows: { label: "Shows", icon: "ticket" },
 };
 
 const PLACES = [

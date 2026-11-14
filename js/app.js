@@ -12,6 +12,35 @@
   };
   const RANK = { easy: 0, sharp: 1, skip: 2 };
 
+
+  /* ---------- icons (one consistent stroke set) ---------- */
+  const ICONS = {
+    home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+    nav: '<path d="M3 11 21 3l-8 18-2-8z"/>',
+    car: '<path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><rect x="3" y="11" width="18" height="6" rx="2"/><path d="M6 17v2M18 17v2M7.5 14h.01M16.5 14h.01"/>',
+    send: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+    tree: '<path d="M12 3l4.5 5.5H14l4 5h-3l4 5.500H5l4-5.500H6l4-5H7.500zM12 19v2.500"/>',
+    camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+    eye: '<path d="M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    museum: '<path d="M3 21h18M5 21V10M19 21V10M9.500 21V10M14.500 21V10M3 10l9-6 9 6z"/>',
+    leaf: '<path d="M12 22v-7M7 15a5 5 0 0 1-1-9.500 6 6 0 0 1 12 0A5 5 0 0 1 17 15z"/>',
+    food: '<path d="M6 3v7a2 2 0 0 0 4 0V3M8 3v18M17 21V3c-2 1.500-3 4-3 8h3"/>',
+    bag: '<path d="M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM9 8V6a3 3 0 0 1 6 0v2"/>',
+    ticket: '<path d="M3 9V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a3 3 0 0 0 0 6v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a3 3 0 0 0 0-6zM14 5v3M14 11v2M14 16v3"/>',
+    heart: '<path d="M12 20s-7-4.500-9-9.200C1.700 7.300 4 4 7.200 4 9.100 4 10.800 5 12 6.800 13.200 5 14.900 4 16.800 4 20 4 22.300 7.300 21 10.800 19 15.500 12 20 12 20z"/>',
+    chev: '<path d="M9 6l6 6-6 6"/>',
+    ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.500 1.500M17.500 17.500 19 19M19 5l-1.500 1.500M6.500 17.500 5 19"/>',
+    moon: '<path d="M20 14.500A8 8 0 0 1 9.500 4a8 8 0 1 0 10.500 10.500z"/>',
+    pin: '<path d="M12 21s-7-6.200-7-11a7 7 0 0 1 14 0c0 4.800-7 11-7 11z"/><circle cx="12" cy="10" r="2.500"/>',
+    map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  };
+  const ic = (name) => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.800" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(ICONS[name] || "").replace(/(\d)\.(\d)00\b/g, "$1.$2")}</svg>`;
+  Object.values(CATS).forEach((c) => { c.glyph = ic(c.icon); });
+
   /* ---------- storage ---------- */
   const store = {
     get(key, fallback) {
@@ -114,38 +143,49 @@
     const now = nyNow();
     const before = dayDiff(now.date, TRIP.start);
     const after = dayDiff(TRIP.end, now.date);
-    let big, small;
+    const inTrip = before <= 0 && after <= 0;
+    const m = now.minutes;
+    const name = settings.her ? `, ${esc(settings.her)}` : "";
+    let eyebrow, head, line = "", meter = "";
     if (before > 0) {
-      big = before === 1 ? "Tomorrow" : `${before} days to go`;
-      small = "New York, Wednesday 9 – Sunday 13 December";
+      eyebrow = "Wed 9 – Sun 13 December";
+      head = `<span class="hero-num">${before}</span><span class="hero-unit">${before === 1 ? "day" : "days"} to go</span>`;
+      line = `Sunset is at ${fmtClock(SUNSET)} in December. Every day plan below is built around that.`;
     } else if (after > 0) {
-      big = "Back home";
-      small = "Everything here still works as a scrapbook.";
+      eyebrow = "9 – 13 December";
+      head = `<span class="hero-title">Back home${name}</span>`;
+      line = "Everything here still works as a scrapbook.";
     } else {
       const n = dayDiff(TRIP.start, now.date) + 1;
-      big = `${now.weekday}`;
-      small = `Day ${n} of 5 · ${fmtClock(now.minutes)} in New York`;
+      const hello = m < 12 * 60 ? "Good morning" : m < SUNSET ? "Good afternoon" : "Good evening";
+      eyebrow = `${now.weekday} · Day ${n} of 5 · ${fmtClock(m)}`;
+      head = `<span class="hero-title">${hello}${name}</span>`;
+      if (m < SUNRISE) line = `Still dark. Sunrise is at ${fmtClock(SUNRISE)}.`;
+      else if (m < SUNSET) line = `<b>${fmtSpan(SUNSET - m)}</b> of daylight left. Do parks and quiet streets before ${fmtClock(SUNSET)}.`;
+      else line = `<b>It's dark now.</b> Stick to busy streets — the map is showing after-dark guidance.`;
+      const pct = Math.max(0, Math.min(100, ((m - SUNRISE) / (SUNSET - SUNRISE)) * 100));
+      meter = `<div class="meter" role="img" aria-label="Daylight: sunrise ${fmtClock(SUNRISE)}, sunset ${fmtClock(SUNSET)}"><div class="meter-track"><span style="width:${pct}%"></span></div><div class="meter-ends"><span>${ic("sun")} ${fmtClock(SUNRISE)}</span><span>${fmtClock(SUNSET)} ${ic("moon")}</span></div></div>`;
     }
-    let light = "";
-    if (before <= 0 && after <= 0) {
-      const m = now.minutes;
-      if (m < SUNRISE) light = `<p class="light"><b>Still dark.</b> Sunrise is at ${fmtClock(SUNRISE)}.</p>`;
-      else if (m < SUNSET) light = `<p class="light"><b>${fmtSpan(SUNSET - m)} of daylight left.</b> Sunset is at ${fmtClock(SUNSET)} — do parks and quiet streets before then.</p>`;
-      else light = `<p class="light dark"><b>It's dark now.</b> Stick to busy streets; the map is showing after-dark guidance.</p>`;
-    } else if (before > 0) {
-      light = `<p class="light">In December the sun sets at <b>${fmtClock(SUNSET)}</b>. Every day plan below is built around that.</p>`;
-    }
-    return `<div class="status"><p class="eyebrow">${esc(small)}</p><h2>${esc(big)}</h2>${light}<div id="weather" class="weather"></div></div>`;
+    return `<div class="status hero${inTrip && (m >= SUNSET || m < SUNRISE) ? " is-night" : ""}">
+      <p class="eyebrow">${esc(eyebrow)}</p>
+      <h2>${head}</h2>
+      <p class="hero-line">${line}</p>
+      ${meter}
+      <div class="hero-foot">
+        <div><small>Home base</small><b>${esc(HOTEL.name)}, ${esc(HOTEL.area)}</b></div>
+        <div id="weather" class="weather"></div>
+      </div>
+    </div>`;
   }
 
   function actionGrid() {
     const call = settings.phone
-      ? `<a class="act" href="tel:${esc(settings.phone.replace(/[^\d+]/g, ""))}"><span class="act-i">☎</span><b>Call ${esc(partnerName())}</b><small>${esc(settings.phone)}</small></a>`
-      : `<button class="act" data-act="settings"><span class="act-i">☎</span><b>Add a number</b><small>One-tap call button</small></button>`;
+      ? `<a class="act" href="tel:${esc(settings.phone.replace(/[^\d+]/g, ""))}">${ic("phone")}<b>Call ${esc(partnerName())}</b></a>`
+      : `<button class="act" data-act="settings">${ic("phone")}<b>Add a number</b></button>`;
     return `<div class="acts">
-      <a class="act act-main" href="${dirUrl(hotelQuery)}" target="_blank" rel="noopener"><span class="act-i">⌂</span><b>Take me home</b><small>Directions to The Set from here</small></a>
-      <button class="act" data-act="driver"><span class="act-i">A</span><b>Show a driver</b><small>Hotel address, large</small></button>
-      <button class="act" data-act="share"><span class="act-i">◎</span><b>Send my location</b><small>${settings.partner ? "To " + esc(settings.partner) : "Share a map pin"}</small></button>
+      <a class="act act-main" href="${dirUrl(hotelQuery)}" target="_blank" rel="noopener">${ic("nav")}<span><b>Take me home</b><small>Directions to ${esc(HOTEL.name)} from where you are</small></span>${ic("chev")}</a>
+      <button class="act" data-act="driver">${ic("car")}<b>Show a driver</b></button>
+      <button class="act" data-act="share">${ic("send")}<b>Send location</b></button>
       ${call}
     </div>`;
   }
@@ -156,7 +196,7 @@
     const steps = d.steps.map((s) => {
       const p = s.place && placeById[s.place];
       const inner = `<span class="step-time">${esc(s.time)}</span><span class="step-body">${p ? `<b>${esc(p.name)}</b>` : ""}<span>${esc(s.text)}</span></span>`;
-      return p ? `<li><button class="step" data-place="${p.id}">${inner}<span class="chev" aria-hidden="true">›</span></button></li>` : `<li><div class="step">${inner}</div></li>`;
+      return p ? `<li><button class="step" data-place="${p.id}">${inner}<span class="chev" aria-hidden="true">${ic("chev")}</span></button></li>` : `<li><div class="step">${inner}</div></li>`;
     }).join("");
     return `<section class="block">
       <div class="chips" role="group" aria-label="Choose a day">${chips}</div>
@@ -174,7 +214,7 @@
   function nearBlock() {
     const from = origin();
     const list = PLACES.map((p) => ({ p, km: distKm(from, p) })).sort((a, b) => a.km - b.km).slice(0, 4);
-    const rows = list.map(({ p, km }) => `<li><button class="row" data-place="${p.id}"><span class="glyph">${CATS[p.cat].glyph}</span><span class="row-body"><b>${esc(p.name)}</b><small>${fmtDist(km)} · ${esc(p.cost)}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`).join("");
+    const rows = list.map(({ p, km }) => `<li><button class="row" data-place="${p.id}"><span class="tile t-${p.cat}">${CATS[p.cat].glyph}</span><span class="row-body"><b>${esc(p.name)}</b><small>${fmtDist(km)} · ${esc(p.cost)}</small></span><span class="chev" aria-hidden="true">${ic("chev")}</span></button></li>`).join("");
     return `<section class="block">
       <div class="block-head"><h3>${meInNYC() ? "Near you now" : "Nearest to the hotel"}</h3><button class="link" data-act="near">${meInNYC() ? "Refresh" : "Use my location"}</button></div>
       <ul class="rows">${rows}</ul>
@@ -185,7 +225,7 @@
     return `<section class="block">
       <div class="block-head"><h3>What's on today</h3></div>
       <p class="muted">Live listings — pop-ups, gigs, one-off events — from people who update them daily.</p>
-      <ul class="rows">${LISTINGS.map((l) => `<li><a class="row" href="${l.url}" target="_blank" rel="noopener"><span class="row-body"><b>${esc(l.name)}</b><small>${esc(l.note)}</small></span><span class="chev" aria-hidden="true">↗</span></a></li>`).join("")}</ul>
+      <ul class="rows">${LISTINGS.map((l) => `<li><a class="row" href="${l.url}" target="_blank" rel="noopener"><span class="row-body"><b>${esc(l.name)}</b><small>${esc(l.note)}</small></span><span class="chev" aria-hidden="true">${ic("ext")}</span></a></li>`).join("")}</ul>
     </section>`;
   }
 
@@ -208,30 +248,26 @@
     if (!el) return;
     const now = nyNow();
     const inTrip = dayDiff(now.date, TRIP.start) <= 0 && dayDiff(TRIP.end, now.date) <= 0;
-    if (!weather) {
-      el.innerHTML = `<span>Typical for these dates: 3–8°C <span class="f">/ 37–46°F</span>, colder in the wind.</span>`;
-      return;
-    }
+    const typical = `<small>Typical weather</small><b>3–8°C <span class="f">· 37–46°F</span></b>`;
+    if (!weather) { el.innerHTML = typical; return; }
     const d = weather.daily;
     if (inTrip) {
       const c = weather.current, i = Math.max(0, d.time.indexOf(now.date));
-      el.innerHTML = `<span><b>${cf(c.temperature_2m)}</b> ${esc(WMO[c.weather_code] || "")} · feels like ${cf(c.apparent_temperature)}</span><span>Today ${Math.round(d.temperature_2m_min[i])}–${Math.round(d.temperature_2m_max[i])}°C · ${d.precipitation_probability_max[i] ?? 0}% chance of rain or snow</span>`;
+      el.innerHTML = `<small>${esc(WMO[c.weather_code] || "Now")} · feels ${Math.round(c.apparent_temperature)}° · ${d.precipitation_probability_max[i] ?? 0}% rain</small><b>${cf(c.temperature_2m)}</b>`;
       return;
     }
     const days = DAYS.filter((x) => d.time.includes(x.date)).map((x) => {
       const i = d.time.indexOf(x.date);
-      return `<span class="wx"><b>${x.short}</b> ${Math.round(d.temperature_2m_max[i])}° <small>${esc(WMO[d.weather_code[i]] || "")}</small></span>`;
+      return `${x.short} ${Math.round(d.temperature_2m_max[i])}°`;
     });
-    el.innerHTML = days.length
-      ? `<div class="wx-row">${days.join("")}</div><span>Forecast highs in °C — it firms up nearer the day.</span>`
-      : `<span>Typical for these dates: 3–8°C <span class="f">/ 37–46°F</span>, colder in the wind. A live forecast appears here about two weeks out.</span>`;
+    el.innerHTML = days.length ? `<small>Forecast highs, °C</small><b>${days.join(" · ")}</b>` : typical;
   }
 
   /* =========================================================
      EXPLORE
      ========================================================= */
   let filter = "all";
-  const FILTERS = [["all", "All"], ["saved", "♥ Saved"], ["festive", "Festive"], ["free", "Free"], ["indoor", "Indoors"], ["sights", "Sights"], ["views", "Views"], ["museums", "Museums"], ["walks", "Walks"], ["food", "Food"], ["shops", "Shops"], ["shows", "Shows"]];
+  const FILTERS = [["all", "All"], ["saved", "Saved"], ["festive", "Festive"], ["free", "Free"], ["indoor", "Indoors"], ["sights", "Sights"], ["views", "Views"], ["museums", "Museums"], ["walks", "Walks"], ["food", "Food"], ["shops", "Shops"], ["shows", "Shows"]];
   function matches(p) {
     if (filter === "all") return true;
     if (filter === "saved") return saved.has(p.id);
@@ -248,19 +284,22 @@
       const level = p.zone ? (dark ? p.zone.night : p.zone.day) : "easy";
       return `<li><article class="card">
         <button class="card-main" data-place="${p.id}">
-          <span class="card-top"><span class="eyebrow">${CATS[p.cat].glyph} ${esc(CATS[p.cat].label)} · ${esc(p.area)}</span></span>
-          <h3>${esc(p.name)}</h3>
-          <p>${esc(p.blurb)}</p>
-          <span class="meta"><span>${fmtDist(km)} ${meInNYC() ? "from you" : "from hotel"}</span><span>${esc(p.cost)}</span>${p.zone && level !== "easy" ? lv(level, dark ? (level === "skip" ? "Not after dark" : "Stay sharp tonight") : "Stay sharp") : ""}</span>
+          <span class="tile t-${p.cat}">${CATS[p.cat].glyph}</span>
+          <span class="card-text">
+            <span class="eyebrow">${esc(CATS[p.cat].label)} · ${esc(p.area)}</span>
+            <h3>${esc(p.name)}</h3>
+            <p>${esc(p.blurb)}</p>
+            <span class="meta"><span>${fmtDist(km)} ${meInNYC() ? "from you" : "from hotel"}</span><span>${esc(p.cost)}</span>${p.zone && level !== "easy" ? lv(level, dark ? (level === "skip" ? "Not after dark" : "Stay sharp tonight") : "Stay sharp") : ""}</span>
+          </span>
         </button>
-        <button class="heart${saved.has(p.id) ? " on" : ""}" data-save="${p.id}" aria-pressed="${saved.has(p.id)}" aria-label="Save ${esc(p.name)}">♥</button>
+        <button class="heart${saved.has(p.id) ? " on" : ""}" data-save="${p.id}" aria-pressed="${saved.has(p.id)}" aria-label="Save ${esc(p.name)}">${ic("heart")}</button>
       </article></li>`;
     }).join("");
     $("#view-explore").innerHTML = `
       <div class="filterbar"><div class="chips scroll" role="group" aria-label="Filter">${FILTERS.map(([k, l]) => `<button class="chip${k === filter ? " on" : ""}" data-filter="${k}">${l}</button>`).join("")}</div></div>
       <div class="pad">
         <p class="muted">${list.length} place${list.length === 1 ? "" : "s"}, nearest first${meInNYC() ? "" : " (from the hotel)"}. <button class="link" data-act="near">${meInNYC() ? "Update my location" : "Sort from where I am"}</button></p>
-        ${list.length ? `<ul class="cards">${cards}</ul>` : `<p class="empty">Nothing saved yet. Tap the ♥ on anything you like the look of and it'll collect here.</p>`}
+        ${list.length ? `<ul class="cards">${cards}</ul>` : `<p class="empty">Nothing saved yet. Tap the heart on anything you like the look of and it'll collect here.</p>`}
       </div>`;
   }
 
@@ -271,7 +310,7 @@
     const z = p.zone;
     const zoneHtml = z ? `<div class="zone-line"><span>By day ${lv(z.day)}</span><span>After dark ${lv(z.night)}</span></div><p class="muted small">${esc(z.name)} — ${esc(z.note)}</p>` : "";
     openSheet(`
-      <p class="eyebrow">${CATS[p.cat].glyph} ${esc(CATS[p.cat].label)} · ${esc(p.area)}</p>
+      <div class="sheet-head"><span class="tile t-${p.cat}">${CATS[p.cat].glyph}</span><p class="eyebrow">${esc(CATS[p.cat].label)} · ${esc(p.area)}</p></div>
       <h2 id="sheetTitle">${esc(p.name)}</h2>
       <p>${esc(p.blurb)}</p>
       <div class="tipbox"><b>Tip</b><p>${esc(p.tip)}</p></div>
@@ -282,10 +321,10 @@
       </dl>
       ${zoneHtml}
       <div class="btns">
-        <a class="btn primary" href="${placeDir(p)}" target="_blank" rel="noopener">Directions from here</a>
-        <button class="btn" data-showmap="${p.id}">Show on map</button>
-        <a class="btn" href="${p.url}" target="_blank" rel="noopener">Website ↗</a>
-        <button class="btn${saved.has(p.id) ? " on" : ""}" data-save="${p.id}" aria-pressed="${saved.has(p.id)}">${saved.has(p.id) ? "♥ Saved" : "♡ Save"}</button>
+        <a class="btn primary" href="${placeDir(p)}" target="_blank" rel="noopener">${ic("nav")} Directions from here</a>
+        <button class="btn" data-showmap="${p.id}">${ic("map")} Map</button>
+        <a class="btn" href="${p.url}" target="_blank" rel="noopener">Website ${ic("ext")}</a>
+        <button class="btn${saved.has(p.id) ? " on" : ""}" data-save="${p.id}" aria-pressed="${saved.has(p.id)}">${ic("heart")} ${saved.has(p.id) ? "Saved" : "Save"}</button>
       </div>`);
   }
 
@@ -293,7 +332,7 @@
   function openSheet(html) {
     lastFocus = document.activeElement;
     const s = $("#sheet");
-    s.innerHTML = `<button class="sheet-close" data-act="close" aria-label="Close">×</button><div class="sheet-body">${html}</div>`;
+    s.innerHTML = `<span class="grab" aria-hidden="true"></span><button class="sheet-close" data-act="close" aria-label="Close">×</button><div class="sheet-body">${html}</div>`;
     s.setAttribute("aria-labelledby", "sheetTitle");
     s.hidden = false; $("#scrim").hidden = false;
     s.scrollTop = 0;
@@ -325,7 +364,7 @@
       <p class="driver-big">10th Avenue<br>&amp; 35th Street</p>
       <p class="driver-mid">${esc(HOTEL.name)} · ${esc(HOTEL.address)}</p>
       <p class="driver-small">${esc(HOTEL.cross)}, ${esc(HOTEL.area)}<br>${esc(HOTEL.cityLine)}</p>
-      <button class="btn" data-act="copy">Copy address</button>`;
+      <button class="btn" data-act="copy">${ic("copy")} Copy address</button>`;
     d.hidden = false;
     $(".sheet-close", d).focus();
   }
@@ -353,7 +392,7 @@
 
   function zoneStyle(z) {
     const level = z[currentMode()];
-    return { color: LEVEL[level].color, weight: level === "skip" ? 2 : 1, dashArray: level === "skip" ? "6 5" : null, opacity: 0.9, fillColor: LEVEL[level].color, fillOpacity: level === "easy" ? 0.16 : level === "sharp" ? 0.3 : 0.38 };
+    return { color: LEVEL[level].color, weight: level === "skip" ? 2 : 1, dashArray: level === "skip" ? "6 5" : null, opacity: 0.9, fillColor: LEVEL[level].color, fillOpacity: level === "easy" ? 0.14 : level === "sharp" ? 0.28 : 0.36 };
   }
   function paintZones() {
     zoneLayers.forEach(({ z, layer }) => layer.setStyle(zoneStyle(z)));
@@ -401,7 +440,7 @@
       markers[p.id] = L.marker([p.lat, p.lng], { icon, title: p.name, alt: p.name }).addTo(map).on("click", () => openPlace(p.id));
     });
     L.marker([HOTEL.lat, HOTEL.lng], {
-      icon: L.divIcon({ className: "pin-wrap", html: `<span class="pin pin-home">⌂</span>`, iconSize: [42, 42], iconAnchor: [21, 21] }),
+      icon: L.divIcon({ className: "pin-wrap", html: `<span class="pin pin-home">${ic("home")}</span>`, iconSize: [42, 42], iconAnchor: [21, 21] }),
       title: "The Set — your hotel", zIndexOffset: 1000,
     }).addTo(map).on("click", openDriver);
 
@@ -427,7 +466,7 @@
      ========================================================= */
   function renderSafety() {
     const dark = isDarkNow();
-    const group = (level) => ZONES.filter((z) => z.night === level).map((z) => `<li><button class="row" data-zone="${z.id}"><span class="row-body"><b>${esc(z.name)}</b><small>By day: ${LEVEL[z.day].label}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`).join("");
+    const group = (level) => ZONES.filter((z) => z.night === level).map((z) => `<li><button class="row" data-zone="${z.id}"><span class="row-body"><b>${esc(z.name)}</b><small>By day: ${LEVEL[z.day].label}</small></span><span class="chev" aria-hidden="true">${ic("chev")}</span></button></li>`).join("");
     $("#view-safety").innerHTML = `<div class="pad">
       <div class="status">
         <p class="eyebrow">The honest version</p>
@@ -469,8 +508,8 @@
       <h3 class="h">If something goes wrong</h3>
       <ul class="rows">${EMERGENCY.map((e) => {
         const body = `<span class="row-body"><small>${esc(e.label)}</small><b>${esc(e.value)}</b><small>${esc(e.note)}</small></span>`;
-        if (e.tel) return `<li><a class="row" href="tel:${e.tel}">${body}<span class="chev">☎</span></a></li>`;
-        return `<li><a class="row" href="${searchUrl(e.map)}" target="_blank" rel="noopener">${body}<span class="chev">↗</span></a></li>`;
+        if (e.tel) return `<li><a class="row" href="tel:${e.tel}">${body}<span class="chev">${ic("phone")}</span></a></li>`;
+        return `<li><a class="row" href="${searchUrl(e.map)}" target="_blank" rel="noopener">${body}<span class="chev">${ic("ext")}</span></a></li>`;
       }).join("")}</ul>
 
       <p class="disclaimer">These zones are a local-knowledge guide to how areas feel on foot, drawn in broad strokes. They aren't live crime data or a guarantee, and things change block by block. Your own judgement on the day beats any map.</p>
@@ -494,7 +533,7 @@
       <h3 class="h">On foot</h3>${list(TRANSIT.walking)}
       <h3 class="h">Cabs</h3>${list(TRANSIT.cabs)}
       <h3 class="h">Good to know</h3>${list(TRANSIT.money)}
-      <div class="btns"><a class="btn" href="https://new.mta.info/map/5256" target="_blank" rel="noopener">Official subway map ↗</a><a class="btn" href="https://citymapper.com/nyc" target="_blank" rel="noopener">Citymapper ↗</a></div>
+      <div class="btns"><a class="btn" href="https://new.mta.info/map/5256" target="_blank" rel="noopener">Official subway map ${ic("ext")}</a><a class="btn" href="https://citymapper.com/nyc" target="_blank" rel="noopener">Citymapper ${ic("ext")}</a></div>
     </div>`;
   }
 
