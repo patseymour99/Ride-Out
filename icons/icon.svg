@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#111"/>
+  <rect y="70" width="512" height="12" fill="#fff"/>
+  <circle cx="256" cy="286" r="150" fill="#fccc0a"/>
+  <text x="256" y="344" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="168" letter-spacing="-6" fill="#111">NY</text>
+</svg>

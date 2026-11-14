@@ -2,137 +2,96 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Garage — A Lifetime on Two Wheels</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your New York</title>
+<meta name="description" content="A pocket guide to New York, Dec 9–13: where to go, how to get there, and where to walk after dark.">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="New York">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<header class="site-header">
-  <div class="header-inner">
-    <div class="masthead">
-      <h1>The Garage</h1>
-      <p class="tagline" id="taglineText">Every motorbike Dad has owned since 2004</p>
+<header class="sign" id="sign">
+  <div class="sign-row">
+    <div class="sign-text">
+      <h1 id="appTitle">Your New York</h1>
+      <p id="appSub">Dec 9–13 · The Set, Hudson Yards</p>
     </div>
-    <div class="header-actions">
-      <button id="tableToggle" class="ghost-btn" aria-pressed="false">Table view</button>
-      <button id="themeToggle" class="ghost-btn" aria-label="Toggle light/dark theme">◐ Theme</button>
-    </div>
-  </div>
-  <div id="sampleBanner" class="sample-banner" hidden>
-    Showing <strong>sample data</strong> — waiting for the real list. Edit <code>js/data.js</code> to replace it.
+    <span class="bullet b-7" aria-hidden="true">7</span>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </button>
   </div>
 </header>
 
-<main>
-  <!-- KPI row -->
-  <section class="kpi-row" id="kpiRow" aria-label="Headline stats"></section>
+<main id="main">
+  <section class="view" id="view-today" aria-labelledby="tab-today"></section>
 
-  <!-- Vintage timeline -->
-  <section class="panel" aria-labelledby="vintageTitle">
-    <div class="panel-head">
-      <h2 id="vintageTitle">Seven decades of machinery</h2>
-      <p class="panel-sub">Every bike placed at its model year — from the 1953 Bullet to today</p>
-    </div>
-    <div id="brandLegend" class="legend" aria-label="Brand legend"></div>
-    <div class="chart-scroll"><div id="vintageChart" class="chart"></div></div>
-    <p class="chart-note" id="vintageNote"></p>
-  </section>
-
-  <!-- Garage grid -->
-  <section class="panel" aria-labelledby="garageTitle">
-    <div class="panel-head">
-      <h2 id="garageTitle">The garage</h2>
-      <p class="panel-sub">A place card for every machine, in the order they arrived</p>
-    </div>
-    <div class="filter-row" id="filterRow">
-      <div class="chip-group" id="categoryChips" role="group" aria-label="Filter by category"></div>
-      <div class="select-group">
-        <label class="sort-label">Marque
-          <select id="brandSelect"><option value="All">All</option></select>
-        </label>
-        <label class="sort-label">Sort
-          <select id="sortSelect">
-            <option value="seq">Order of arrival</option>
-            <option value="cc">Engine size</option>
-            <option value="year">Vintage</option>
-          </select>
-        </label>
+  <section class="view" id="view-map" aria-labelledby="tab-map" hidden>
+    <div class="map-bar">
+      <div class="seg" role="group" aria-label="Time of day">
+        <button id="modeDay" aria-pressed="true">Daytime</button>
+        <button id="modeNight" aria-pressed="false">After dark</button>
+      </div>
+      <div class="legend" aria-label="Legend">
+        <span class="lv lv-easy">Relaxed</span>
+        <span class="lv lv-sharp">Stay sharp</span>
+        <span class="lv lv-skip">Skip</span>
       </div>
     </div>
-    <div id="garageGrid" class="garage-grid"></div>
-  </section>
-
-  <!-- Charts -->
-  <div class="chart-duo">
-    <section class="panel" aria-labelledby="spreeTitle">
-      <div class="panel-head">
-        <h2 id="spreeTitle">The buying spree</h2>
-        <p class="panel-sub">Engine size of each arrival, 1st to 57th</p>
-      </div>
-      <div class="chart-scroll"><div id="spreeChart" class="chart"></div></div>
-    </section>
-    <section class="panel" aria-labelledby="categoryTitle">
-      <div class="panel-head">
-        <h2 id="categoryTitle">What kind of rider?</h2>
-        <p class="panel-sub">The collection by category</p>
-      </div>
-      <div id="categoryChart" class="chart"></div>
-    </section>
-  </div>
-
-  <div class="chart-duo">
-    <section class="panel" aria-labelledby="brandTitle">
-      <div class="panel-head">
-        <h2 id="brandTitle">The marque tally</h2>
-        <p class="panel-sub">Twenty makers, two clear favourites</p>
-      </div>
-      <div id="brandChart" class="chart"></div>
-    </section>
-    <section class="panel" aria-labelledby="decadeTitle">
-      <div class="panel-head">
-        <h2 id="decadeTitle">Vintages by decade</h2>
-        <p class="panel-sub">When the bikes themselves were built</p>
-      </div>
-      <div id="decadeChart" class="chart"></div>
-      <p class="chart-note" id="decadeNote"></p>
-    </section>
-  </div>
-
-  <!-- Repeat purchases -->
-  <section class="panel" aria-labelledby="repeatTitle">
-    <div class="panel-head">
-      <h2 id="repeatTitle">Bought it again</h2>
-      <p class="panel-sub">Models he liked enough to own more than once</p>
+    <div id="map" role="application" aria-label="Map of Manhattan with safety zones and places"></div>
+    <div class="map-actions">
+      <button class="fab" id="locateBtn" aria-label="Show where I am">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+      </button>
+      <button class="fab" id="homeBtn" aria-label="Centre on the hotel">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+      </button>
     </div>
-    <div id="repeatRow" class="records-row"></div>
+    <div class="zone-card" id="zoneCard" hidden></div>
   </section>
 
-  <!-- Records -->
-  <section class="panel" aria-labelledby="recordsTitle">
-    <div class="panel-head">
-      <h2 id="recordsTitle">Garage records</h2>
-      <p class="panel-sub">The superlatives</p>
-    </div>
-    <div id="recordsRow" class="records-row"></div>
-  </section>
-
-  <!-- Table view -->
-  <section class="panel" id="tablePanel" hidden aria-labelledby="tableTitle">
-    <div class="panel-head">
-      <h2 id="tableTitle">Every bike, on the record</h2>
-    </div>
-    <div class="table-wrap"><table id="bikeTable"></table></div>
-  </section>
+  <section class="view" id="view-explore" aria-labelledby="tab-explore" hidden></section>
+  <section class="view" id="view-safety" aria-labelledby="tab-safety" hidden></section>
+  <section class="view" id="view-tips" aria-labelledby="tab-tips" hidden></section>
 </main>
 
-<footer class="site-footer">
-  <p>Built for Dad. Add the next bike any time in <code>js/data.js</code> — the dashboard redraws itself.
-     Drop photos into <code>images/</code> and point each bike's <code>image</code> field at them.</p>
-</footer>
+<nav class="tabs" aria-label="Sections">
+  <button id="tab-today" data-view="today" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.500 17.5L5 19"/></svg>
+    <span>Today</span>
+  </button>
+  <button id="tab-map" data-view="map">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>
+    <span>Map</span>
+  </button>
+  <button id="tab-explore" data-view="explore">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>
+    <span>Explore</span>
+  </button>
+  <button id="tab-safety" data-view="safety">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3l8 3v6c0 5-3.500 8-8 9-4.500-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+    <span>Safety</span>
+  </button>
+  <button id="tab-tips" data-view="tips">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l2-4M16 21l-2-4"/><circle cx="9" cy="14" r=".6" fill="currentColor"/><circle cx="15" cy="14" r=".6" fill="currentColor"/></svg>
+    <span>Transit</span>
+  </button>
+</nav>
 
-<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+<!-- Place detail / settings / address sheets -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
+<div class="driver" id="driver" role="dialog" aria-modal="true" aria-label="Hotel address" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
 
+<script src="vendor/leaflet/leaflet.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 </body>

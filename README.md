@@ -1,38 +1,47 @@
-# The Garage — a lifetime on two wheels
+# Your New York
 
-A dashboard of every motorbike Dad has owned since 2004 — all 57 of them,
-from a 1953 Royal Enfield Bullet to a 2026 Honda ADV 350.
-Static site, zero dependencies — open `index.html` in a browser and it just works.
+A pocket guide for a solo-by-day trip to New York, 9–13 December 2026, based at
+The Set in Hudson Yards. Built to be opened on a phone.
 
-## Views
+- **Today** — countdown before the trip, then the day's plan, daylight remaining,
+  live weather, and four big buttons: take me home, show the address to a driver,
+  send my location, call.
+- **Map** — every place in the guide plus colour-coded areas (Relaxed / Stay sharp /
+  Skip) that switch between daytime and after-dark guidance on their own.
+- **Explore** — 39 places, nearest first, filterable (festive, free, indoors…), each
+  with a tip, cost, and exactly which train to take from the hotel.
+- **Safety** — how to get back to the hotel at night, six habits, area-by-area
+  notes, subway sense, common hustles, emergency numbers.
+- **Transit** — the two stations and one bus that reach everything, paying by tap,
+  reading the subway, cabs, tipping.
 
-- **Headline stats** — bikes owned, buying rate, marques, vintage span, biggest engine
-- **Seven decades of machinery** — every bike placed at its model year, coloured by marque
-- **The garage** — a place card for every machine in arrival order, filterable by
-  category and marque, sortable by arrival, engine size, or vintage
-- **The buying spree** — engine size of each arrival, 1st to 57th
-- **What kind of rider?** — the collection by category (off-road leads, obviously)
-- **The marque tally** — all the makers, from Yamaha and KTM down to the one-offs
-- **Vintages by decade** — when the bikes themselves were built
-- **Bought it again** — models owned more than once (WR 450 ×4…)
-- **Garage records** — the elder, the monster, the tiddler, lifetime displacement
-- **Table view** — the full record, one row per bike
+## Running it
 
-## Updating the data
+It's a static site with no build step. Serve the folder with anything:
 
-Everything is driven by `js/data.js`. Each bike is one object, listed in the
-order it arrived:
-
-```js
-{ make: "Yamaha", model: "WR 450", year: 2008, cc: 450,
-  category: "Off-road", image: "images/wr450.jpg",
-  note: "WR450 number two." }
+```
+python3 -m http.server 8000
 ```
 
-- `year` is the bike's model year (`null` if unrecorded).
-- `category` is one of: Off-road, Trials, Road, Adventure, Scooter, Classic, Mini.
-- `image: null` renders a consistent category-matched silhouette; drop photos
-  into `images/` and point `image` at them for the real thing.
-- Engine sizes and model identifications are best-effort — correct them freely.
+Host it anywhere that serves static files over HTTPS (needed for location and
+offline support). On the phone, open the link and use **Share → Add to Home
+Screen** so it behaves like an app and opens without signal.
 
-Every chart, stat, and record recomputes automatically from the list.
+## Editing
+
+Everything on screen comes from `js/data.js`: the hotel, the places, the day
+plans, the safety zones and the tips. Zones are written in street-grid terms —
+`rect(9.5, 7.6, 36, 43)` means 9½th to 7½th Avenue, 36th to 43rd Street.
+
+Names and a phone number are entered in the app (the person icon, top right) and
+stay on that phone.
+
+## Caveats
+
+- Opening hours, prices and holiday-market dates were checked in mid-November
+  2026 and several weren't final. Check the linked official site before
+  travelling across town for something.
+- The safety areas are broad-strokes local knowledge about how places feel on
+  foot, not crime data.
+
+Map: Leaflet (vendored), tiles © OpenStreetMap contributors © CARTO. Weather: Open-Meteo.

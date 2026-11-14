@@ -1,609 +1,588 @@
-/* ============================================================
-   THE GARAGE — dashboard app
-   Reads BIKES from js/data.js and renders every view.
-   No dependencies; all charts are hand-rolled SVG.
-   ============================================================ */
-
+/* Your New York — app logic. Content lives in data.js. */
 (function () {
   "use strict";
 
-  const NOW = new Date().getFullYear();
-  const SVG_NS = "http://www.w3.org/2000/svg";
-
-  /* ---------- data prep ---------- */
-
-  const bikes = BIKES.map((b, i) => ({ ...b, seq: i + 1 }));
-
-  const CATEGORIES = ["Off-road", "Trials", "Road", "Adventure", "Scooter", "Classic", "Mini"];
-
-  // Brand counts; the top 7 marques get the categorical slots (fixed order,
-  // never cycled), everything else folds into a grey "Other marques".
-  const brandCount = new Map();
-  bikes.forEach((b) => brandCount.set(b.make, (brandCount.get(b.make) || 0) + 1));
-  const brandsByCount = [...brandCount.keys()].sort((a, b) =>
-    brandCount.get(b) - brandCount.get(a) ||
-    bikes.findIndex((x) => x.make === a) - bikes.findIndex((x) => x.make === b)
-  );
-  const topBrands = brandsByCount.slice(0, 7);
-  const brandColor = (make) => {
-    const idx = topBrands.indexOf(make);
-    return idx >= 0 ? `var(--series-${idx + 1})` : "var(--text-muted)";
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const HOTEL = TRIP.hotel;
+  const LEVEL = {
+    easy: { label: "Relaxed", color: "#1f8a4c" },
+    sharp: { label: "Stay sharp", color: "#d98a00" },
+    skip: { label: "Skip", color: "#c8321e" },
   };
+  const RANK = { easy: 0, sharp: 1, skip: 2 };
 
-  const knownYears = bikes.filter((b) => b.year !== null);
-  const oldest = knownYears.reduce((a, b) => (b.year < a.year ? b : a));
-  const newest = knownYears.reduce((a, b) => (b.year > a.year ? b : a));
-
-  /* ---------- tiny DOM/SVG helpers ---------- */
-
-  const $ = (sel) => document.querySelector(sel);
-  function el(tag, attrs, text) {
-    const n = document.createElement(tag);
-    if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
-    if (text !== undefined) n.textContent = text;
-    return n;
-  }
-  function svgEl(tag, attrs, text) {
-    const n = document.createElementNS(SVG_NS, tag);
-    if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
-    if (text !== undefined) n.textContent = text;
-    return n;
-  }
-
-  /* ---------- tooltip ---------- */
-
-  const tip = $("#tooltip");
-  function showTip(html, evt) {
-    tip.innerHTML = html;
-    tip.hidden = false;
-    const pad = 14;
-    let x = evt.clientX + pad;
-    let y = evt.clientY + pad;
-    const r = tip.getBoundingClientRect();
-    if (x + r.width > window.innerWidth - 8) x = evt.clientX - r.width - pad;
-    if (y + r.height > window.innerHeight - 8) y = evt.clientY - r.height - pad;
-    tip.style.left = x + "px";
-    tip.style.top = y + "px";
-  }
-  function hideTip() { tip.hidden = true; }
-  function bindTip(node, htmlFn) {
-    node.addEventListener("mousemove", (e) => showTip(htmlFn(), e));
-    node.addEventListener("mouseleave", hideTip);
-  }
-  const bikeTip = (b) =>
-    `<div class="tt-title">#${b.seq} · ${b.make} ${b.model}</div>
-     <div class="tt-sub">${b.year !== null ? b.year + " · " : ""}${b.cc}cc ${b.engine ? b.engine.toLowerCase() : ""} · ${b.category}</div>`;
-
-  /* ---------- theme toggle ---------- */
-
-  const root = document.documentElement;
-  const savedTheme = localStorage.getItem("garage-theme");
-  if (savedTheme) root.dataset.theme = savedTheme;
-  $("#themeToggle").addEventListener("click", () => {
-    const dark = root.dataset.theme
-      ? root.dataset.theme === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const next = dark ? "light" : "dark";
-    root.dataset.theme = next;
-    localStorage.setItem("garage-theme", next);
-  });
-
-  if (typeof SAMPLE_DATA !== "undefined" && SAMPLE_DATA) {
-    $("#sampleBanner").hidden = false;
-  }
-  $("#taglineText").textContent =
-    `Every motorbike Dad has owned since ${COLLECTING_SINCE} — all ${bikes.length} of them`;
-
-  /* ---------- KPI row ---------- */
-
-  function renderKpis() {
-    const row = $("#kpiRow");
-    const years = NOW - COLLECTING_SINCE;
-    const biggest = bikes.reduce((a, b) => (b.cc > a.cc ? b : a));
-    const kpis = [
-      { label: "Bikes owned", value: bikes.length, note: `since ${COLLECTING_SINCE}` },
-      { label: "Buying rate", value: (bikes.length / years).toFixed(1), note: "bikes a year, every year" },
-      { label: "Marques ridden", value: brandsByCount.length, note: `${topBrands[0]} leads with ${brandCount.get(topBrands[0])}` },
-      { label: "Vintage span", value: `${newest.year - oldest.year} yrs`, note: `${oldest.year} Bullet to ${newest.year} ${newest.model}` },
-      { label: "Biggest engine", value: `${biggest.cc}cc`, note: `${biggest.make} ${biggest.model}` },
-    ];
-    kpis.forEach((k) => {
-      const t = el("div", { class: "stat-tile" });
-      t.append(
-        el("div", { class: "stat-label" }, k.label),
-        el("div", { class: "stat-value" }, String(k.value)),
-        el("div", { class: "stat-note" }, k.note)
-      );
-      row.append(t);
-    });
-  }
-
-  /* ---------- brand legend ---------- */
-
-  function renderLegend() {
-    const box = $("#brandLegend");
-    [...topBrands, "Other marques"].forEach((m) => {
-      const item = el("span", { class: "legend-item" });
-      const sw = el("span", { class: "legend-swatch" });
-      sw.style.background = m === "Other marques" ? "var(--text-muted)" : brandColor(m);
-      item.append(sw, document.createTextNode(m));
-      box.append(item);
-    });
-  }
-
-  /* ---------- vintage timeline (stacked dots per model year) ---------- */
-
-  function renderVintage() {
-    const padL = 20, padR = 20, padB = 30, padT = 30;
-    const W = 1080, dotR = 6, dotGap = 15;
-    const y0 = 1950, y1 = NOW + 1;
-    const x = (yr) => padL + ((yr - y0) / (y1 - y0)) * (W - padL - padR);
-
-    const byYear = new Map();
-    knownYears.forEach((b) => {
-      if (!byYear.has(b.year)) byYear.set(b.year, []);
-      byYear.get(b.year).push(b);
-    });
-    const maxStack = Math.max(...[...byYear.values()].map((v) => v.length));
-    const H = padT + maxStack * dotGap + padB + 10;
-    const baseY = H - padB;
-
-    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Bikes by model year" });
-
-    for (let yr = 1950; yr <= y1; yr += 10) {
-      svg.append(svgEl("line", { x1: x(yr), y1: padT - 6, x2: x(yr), y2: baseY, class: "gridline" }));
-      svg.append(svgEl("text", { x: x(yr), y: baseY + 18, "text-anchor": "middle", class: "axis-label" }, String(yr)));
-    }
-    svg.append(svgEl("line", { x1: padL, y1: baseY, x2: W - padR, y2: baseY, class: "baseline-line" }));
-
-    byYear.forEach((list, yr) => {
-      list.forEach((b, i) => {
-        const dot = svgEl("circle", {
-          cx: x(yr), cy: baseY - dotR - 1 - i * dotGap, r: dotR,
-          fill: brandColor(b.make), stroke: "var(--surface-1)", "stroke-width": 2,
-        });
-        bindTip(dot, () => bikeTip(b));
-        svg.append(dot);
-      });
-    });
-
-    // selective labels on the two ends of the span, pinned to the top edge
-    svg.append(svgEl("text", { x: x(oldest.year), y: 14, "text-anchor": "start", class: "bar-label" },
-      `’${String(oldest.year).slice(2)} ${oldest.make} ${oldest.model}`));
-    svg.append(svgEl("text", { x: W - padR, y: 14, "text-anchor": "end", class: "bar-label" },
-      `’${String(newest.year).slice(2)} ${newest.make} ${newest.model}`));
-
-    $("#vintageChart").append(svg);
-    const unknown = bikes.length - knownYears.length;
-    $("#vintageNote").textContent =
-      `${unknown} bikes without a recorded model year appear in the garage below but not on this axis. Hover any dot for the bike.`;
-  }
-
-  /* ---------- bike illustrations (consistent style, authentic liveries) ---------- */
-
-  // Real-world brand colours, used only for the card artwork — the charts keep
-  // the validated categorical palette, carried by the brand chip and legend.
-  const LIVERY = {
-    "Yamaha":        { body: "#1c3faf", accent: "#e8eef8" },
-    "KTM":           { body: "#f26a1b", accent: "#1f1f1f" },
-    "Honda":         { body: "#c62f2f", accent: "#f0f0ee" },
-    "Suzuki":        { body: "#e8b40a", accent: "#20408a" },
-    "Husqvarna":     { body: "#e4e6e4", accent: "#243f8f" },
-    "Vespa":         { body: "#7cc4ad", accent: "#efeadb" },
-    "Kawasaki":      { body: "#3f9f34", accent: "#141414" },
-    "Moto Guzzi":    { body: "#8c2430", accent: "#d9cfa8" },
-    "MV Agusta":     { body: "#c22539", accent: "#c8ccd2" },
-    "Ducati":        { body: "#cc2229", accent: "#f2f2f0" },
-    "Aprilia":       { body: "#454a52", accent: "#c22539" },
-    "Gas Gas":       { body: "#d1342f", accent: "#f2f2f0" },
-    "Ossa":          { body: "#2e7d4f", accent: "#e9e4c8" },
-    "Royal Enfield": { body: "#3a5f46", accent: "#d9b45b" },
-    "Sherco":        { body: "#2456c4", accent: "#f5d31f" },
-    "Simson":        { body: "#66809f", accent: "#e6e2d6" },
-    "Indian":        { body: "#3c3c40", accent: "#7d1f24" },
-    "Bultaco":       { body: "#c2382e", accent: "#d9d9d9" },
-    "Montesa":       { body: "#b3252e", accent: "#f0f0ee" },
+  /* ---------- storage ---------- */
+  const store = {
+    get(key, fallback) {
+      try { const v = localStorage.getItem("nyc." + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+    },
+    set(key, value) { try { localStorage.setItem("nyc." + key, JSON.stringify(value)); } catch (e) { /* private mode */ } },
   };
-  const livery = (make) => LIVERY[make] || { body: "var(--text-muted)", accent: "var(--surface-1)" };
+  let settings = store.get("settings", { her: "", partner: "", phone: "" });
+  let saved = new Set(store.get("saved", []));
 
-  function silWheels(g, pairs, r, ink) {
-    pairs.forEach(([cx, cy]) => {
-      g.append(svgEl("circle", { cx, cy, r, "stroke-width": 7 }));
-      g.append(svgEl("circle", { cx, cy, r: 7, fill: ink, stroke: "none" }));
-    });
+  /* ---------- New York clock ---------- */
+  const hm = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  function nyNow() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: TRIP.tz, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23", weekday: "long",
+    }).formatToParts(new Date());
+    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+    return { date: `${p.year}-${p.month}-${p.day}`, minutes: Number(p.hour) * 60 + Number(p.minute), weekday: p.weekday };
   }
+  const SUNSET = hm(TRIP.sunset), SUNRISE = hm(TRIP.sunrise);
+  const isDarkNow = () => { const m = nyNow().minutes; return m >= SUNSET + 15 || m < SUNRISE - 15; };
+  const dayDiff = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 864e5);
+  const fmtClock = (mins) => { const h = Math.floor(mins / 60), m = mins % 60; return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
+  const fmtSpan = (mins) => (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`);
 
-  // Body panels get a faint ink outline so light liveries (Husqvarna white,
-  // Suzuki yellow) stay crisp on the light surface.
-  function bodyPath(d, fill) {
-    const p = svgEl("path", { d, fill, stroke: "var(--text-primary)", "stroke-opacity": 0.25, "stroke-width": 1.5 });
-    return p;
+  /* ---------- geometry ---------- */
+  function distKm(a, b) {
+    const R = 6371, rad = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
   }
-
-  function silhouette(b) {
-    const { body, accent } = livery(b.make);
-    const ink = "var(--text-primary)";
-    const svg = svgEl("svg", { viewBox: "0 0 320 200", role: "img", "aria-label": `${b.make} ${b.model} illustration` });
-    const g = svgEl("g", { fill: "none", stroke: ink, "stroke-linecap": "round" });
-    g.style.opacity = "0.82";
-    g.append(svgEl("line", { x1: 20, y1: 188, x2: 300, y2: 188, "stroke-width": 2, class: "baseline-line" }));
-
-    const kind =
-      b.cc >= 1500 ? "cruiser" :
-      b.category === "Trials" ? "trials" :
-      b.category === "Adventure" ? "adventure" :
-      b.category === "Scooter" ? "scooter" :
-      b.category === "Road" ? "sport" :
-      b.category === "Classic" ? "classic" :
-      b.category === "Mini" ? "mini" : "offroad";
-
-    if (kind === "offroad") {
-      silWheels(g, [[78, 144], [246, 144]], 36, ink);
-      g.append(svgEl("path", { d: "M246,144 L214,50 L192,42", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M186,82 Q222,68 258,82", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M64,96 Q120,80 178,86 L180,98 Q120,96 66,106 Z", fill: ink, stroke: "none" }));
-      g.append(svgEl("path", { d: "M78,144 L152,92 M196,90 L246,144", "stroke-width": 5 }));
-      g.append(svgEl("rect", { x: 140, y: 100, width: 44, height: 28, rx: 8, fill: ink, stroke: "none" }));
-      g.append(svgEl("path", { d: "M150,132 L238,118", "stroke-width": 6 }));
-      svg.append(g);
-      svg.append(bodyPath("M150,78 Q176,62 202,73 Q205,87 190,92 Q163,94 151,90 Z", body));
-      svg.append(svgEl("rect", { x: 92, y: 102, width: 26, height: 16, rx: 5, fill: accent, "fill-opacity": 0.9 }));
-    } else if (kind === "trials") {
-      silWheels(g, [[78, 146], [246, 146]], 34, ink);
-      g.append(svgEl("path", { d: "M246,146 L216,54 L194,46", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M184,80 Q220,66 256,80", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M214,62 Q150,74 84,112", "stroke-width": 7 }));
-      g.append(svgEl("path", { d: "M78,146 L140,106 M196,96 L246,146", "stroke-width": 5 }));
-      g.append(svgEl("rect", { x: 138, y: 104, width: 40, height: 26, rx: 8, fill: ink, stroke: "none" }));
-      svg.append(g);
-      svg.append(bodyPath("M158,84 Q180,72 200,80 Q202,92 188,96 Q168,96 158,92 Z", body));
-      svg.append(svgEl("rect", { x: 100, y: 104, width: 24, height: 15, rx: 5, fill: accent, "fill-opacity": 0.9 }));
-    } else if (kind === "adventure") {
-      silWheels(g, [[78, 146], [246, 146]], 35, ink);
-      g.append(svgEl("path", { d: "M246,146 L218,56 L198,48", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M212,60 L226,34", "stroke-width": 5 }));
-      g.append(svgEl("path", { d: "M196,86 Q230,74 258,88", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M64,96 Q118,82 140,86 L142,98 Q118,98 66,106 Z", fill: ink, stroke: "none" }));
-      g.append(svgEl("path", { d: "M78,146 L150,94 M198,92 L246,146", "stroke-width": 5 }));
-      g.append(svgEl("rect", { x: 142, y: 102, width: 46, height: 28, rx: 8, fill: ink, stroke: "none" }));
-      g.append(svgEl("path", { d: "M152,134 L240,122", "stroke-width": 6 }));
-      svg.append(g);
-      svg.append(bodyPath("M138,76 Q176,56 206,72 Q210,90 192,96 Q156,100 140,94 Z", body));
-      svg.append(svgEl("rect", { x: 84, y: 106, width: 30, height: 26, rx: 5, fill: accent, "fill-opacity": 0.9 }));
-    } else if (kind === "sport") {
-      silWheels(g, [[74, 148], [250, 148]], 34, ink);
-      g.append(svgEl("path", { d: "M250,148 L228,72", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M220,70 L238,52", "stroke-width": 5 }));
-      g.append(svgEl("path", { d: "M74,148 L140,100 M210,96 L250,148", "stroke-width": 5 }));
-      g.append(svgEl("rect", { x: 148, y: 104, width: 48, height: 30, rx: 8, fill: ink, stroke: "none" }));
-      g.append(svgEl("path", { d: "M160,140 L246,130", "stroke-width": 6 }));
-      svg.append(g);
-      svg.append(svgEl("path", { d: "M70,92 Q98,82 124,88 L126,100 Q96,104 72,100 Z", fill: accent, "fill-opacity": 0.9, stroke: ink, "stroke-opacity": 0.25, "stroke-width": 1.5 }));
-      svg.append(bodyPath("M118,86 Q170,58 226,72 L244,106 Q196,90 148,100 Q124,98 118,86 Z", body));
-    } else if (kind === "cruiser") {
-      silWheels(g, [[70, 150], [254, 150]], 34, ink);
-      g.append(svgEl("path", { d: "M254,150 L210,70 L184,56", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M78,104 Q102,98 122,102 L122,114 Q96,118 80,114 Z", fill: ink, stroke: "none" }));
-      g.append(svgEl("path", { d: "M70,150 L136,110 M200,104 L254,150", "stroke-width": 5 }));
-      g.append(svgEl("rect", { x: 136, y: 112, width: 56, height: 30, rx: 8, fill: ink, stroke: "none" }));
-      g.append(svgEl("path", { d: "M150,148 L262,144", "stroke-width": 7 }));
-      svg.append(g);
-      svg.append(bodyPath("M120,96 Q160,82 198,92 Q200,108 184,112 Q144,114 122,108 Z", body));
-      svg.append(svgEl("path", { d: "M128,101 L190,101", stroke: accent, "stroke-width": 3, fill: "none", "stroke-linecap": "round" }));
-    } else if (kind === "scooter") {
-      silWheels(g, [[86, 160], [240, 160]], 24, ink);
-      g.append(svgEl("path", { d: "M240,160 L214,60 L190,52", "stroke-width": 6 }));
-      g.append(svgEl("path", { d: "M206,66 Q186,74 182,112 Q180,126 172,130", "stroke-width": 7 }));
-      g.append(svgEl("path", { d: "M70,90 Q104,82 138,90 L138,102 L72,102 Z", fill: ink, stroke: "none" }));
-      svg.append(g);
-      svg.append(bodyPath("M54,130 Q52,104 86,100 L148,102 Q170,106 176,124 L148,136 Q92,146 54,130 Z", body));
-      svg.append(svgEl("path", { d: "M64,122 Q104,132 150,124", stroke: accent, "stroke-width": 3.5, fill: "none", "stroke-linecap": "round" }));
-    } else { // classic & mini
-      const gg = svgEl("g", { transform: kind === "mini" ? "translate(50,60) scale(0.68)" : "" });
-      const inner = svgEl("g", { fill: "none", stroke: ink, "stroke-linecap": "round" });
-      inner.style.opacity = "0.82";
-      silWheels(inner, [[72, 148], [252, 148]], 36, ink);
-      inner.append(svgEl("path", { d: "M252,148 L226,60 L206,50", "stroke-width": 6 }));
-      inner.append(svgEl("path", { d: "M72,148 L128,96 M72,148 L150,128 M210,96 L252,148", "stroke-width": 5 }));
-      inner.append(svgEl("rect", { x: 140, y: 100, width: 52, height: 34, rx: 8, fill: ink, stroke: "none" }));
-      inner.append(svgEl("path", { d: "M158,138 L246,143", "stroke-width": 6 }));
-      inner.append(svgEl("path", { d: "M84,88 Q110,78 130,85 L132,97 Q104,101 84,97 Z", fill: ink, stroke: "none" }));
-      gg.append(inner);
-      gg.append(bodyPath("M130,84 Q162,64 198,78 Q204,92 190,99 Q152,104 131,97 Z", body));
-      gg.append(svgEl("path", { d: "M140,88 Q166,74 192,84", stroke: accent, "stroke-width": 3, fill: "none", "stroke-linecap": "round" }));
-      svg.append(g, gg);
+  function fmtDist(km) {
+    const street = km * 1.3; // street-grid walking is longer than a straight line
+    const mi = km * 0.621;
+    if (street < 2.2) return `${Math.max(1, Math.round(street * 12.5))} min walk`;
+    return `${mi.toFixed(1)} mi`;
+  }
+  function inPoly(lat, lng, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [yi, xi] = poly[i], [yj, xj] = poly[j];
+      if ((yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
     }
-    return svg;
+    return inside;
+  }
+  function zoneAt(lat, lng) {
+    let best = null;
+    for (const z of ZONES) if (inPoly(lat, lng, z.poly) && (!best || RANK[z.night] > RANK[best.night])) best = z;
+    return best;
+  }
+  PLACES.forEach((p) => { p.zone = zoneAt(p.lat, p.lng); });
+  const placeById = Object.fromEntries(PLACES.map((p) => [p.id, p]));
+
+  /* ---------- links ---------- */
+  const hotelQuery = `${HOTEL.name}, ${HOTEL.address}, ${HOTEL.cityLine}`;
+  const dirUrl = (dest) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=transit`;
+  const placeDir = (p) => dirUrl(`${p.name}, New York, NY`);
+  const searchUrl = (q) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+
+  /* ---------- small renderers ---------- */
+  const BUS = new Set(["M34"]);
+  const bullets = (lines) => (lines || []).map((l) => (BUS.has(l) ? `<span class="bus">${l}</span>` : `<span class="bullet b-${l}">${l}</span>`)).join("");
+  const lv = (level, text) => `<span class="lv lv-${level}">${esc(text || LEVEL[level].label)}</span>`;
+  const partnerName = () => settings.partner || "him";
+
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => { t.hidden = true; }, 3200);
   }
 
-  /* ---------- garage grid ---------- */
-
-  let activeCategory = "All";
-  let activeBrand = "All";
-  let sortKey = "seq";
-
-  function renderFilters() {
-    const box = $("#categoryChips");
-    ["All", ...CATEGORIES].forEach((cat) => {
-      const chip = el("button", { class: "chip", "aria-pressed": cat === activeCategory ? "true" : "false" });
-      chip.append(document.createTextNode(cat));
-      chip.addEventListener("click", () => {
-        activeCategory = cat;
-        box.querySelectorAll(".chip").forEach((ch) => ch.setAttribute("aria-pressed", "false"));
-        chip.setAttribute("aria-pressed", "true");
-        renderGarage();
-      });
-      box.append(chip);
-    });
-    const sel = $("#brandSelect");
-    brandsByCount.forEach((m) => {
-      sel.append(el("option", { value: m }, `${m} (${brandCount.get(m)})`));
-    });
-    sel.addEventListener("change", (e) => { activeBrand = e.target.value; renderGarage(); });
-    $("#sortSelect").addEventListener("change", (e) => { sortKey = e.target.value; renderGarage(); });
-  }
-
-  function renderGarage() {
-    const grid = $("#garageGrid");
-    grid.innerHTML = "";
-    let list = bikes.filter((b) =>
-      (activeCategory === "All" || b.category === activeCategory) &&
-      (activeBrand === "All" || b.make === activeBrand)
+  /* ---------- location ---------- */
+  let me = null;
+  function locate(onDone, quiet) {
+    if (!navigator.geolocation) { if (!quiet) toast("This phone isn't sharing its location."); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { me = { lat: pos.coords.latitude, lng: pos.coords.longitude }; onDone && onDone(me); },
+      () => { if (!quiet) toast("Couldn't get your location — check the browser has permission."); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
     );
-    list = [...list].sort((a, b) =>
-      sortKey === "seq" ? a.seq - b.seq :
-      sortKey === "cc" ? b.cc - a.cc :
-      (a.year ?? 9999) - (b.year ?? 9999)
-    );
-    list.forEach((b) => {
-      const card = el("article", { class: "bike-card" });
-      const media = el("div", { class: "card-media" });
-      // Start with the illustration; upgrade to a photo if one exists —
-      // either the explicit image field or scripts/fetch_images.mjs output.
-      media.append(silhouette(b));
-      const src = b.image || `images/bike-${String(b.seq).padStart(2, "0")}.jpg`;
-      const img = el("img", { src, alt: `${b.make} ${b.model}`, loading: "lazy" });
-      img.addEventListener("load", () => { media.replaceChildren(img); });
-      const body = el("div", { class: "card-body" });
-      const top = el("div", { class: "card-top" });
-      const chip = el("span", { class: "brand-chip" });
-      const sw = el("span", { class: "legend-swatch" });
-      sw.style.background = brandColor(b.make);
-      chip.append(sw, document.createTextNode(b.make));
-      top.append(chip, el("span", { class: "seq-badge" }, `#${b.seq}`));
-      body.append(top, el("h3", null,
-        b.model + (b.year !== null ? ` (’${String(b.year).slice(2)})` : "")));
-      body.append(el("div", { class: "card-years" },
-        b.year !== null ? `${b.year} model` : "model year unrecorded"));
-      const specs = el("div", { class: "card-specs" });
-      specs.append(el("span", null, `${b.cc}cc`), el("span", null, b.engine), el("span", null, b.category));
-      body.append(specs);
-      if (b.note) body.append(el("p", { class: "card-story" }, `“${b.note}”`));
-      card.append(media, body);
-      grid.append(card);
-    });
+  }
+  // Only treat her location as meaningful if she is actually in or near the city.
+  const meInNYC = () => me && distKm(me, HOTEL) < 40;
+  const origin = () => (meInNYC() ? me : HOTEL);
+
+  /* =========================================================
+     TODAY
+     ========================================================= */
+  let dayIndex = null;
+  function defaultDayIndex() {
+    const today = nyNow().date;
+    const i = DAYS.findIndex((d) => d.date === today);
+    return i >= 0 ? i : 0;
   }
 
-  /* ---------- the buying spree (scatter: arrival order vs cc) ---------- */
-
-  function renderSpree() {
-    const W = 520, H = 280, padL = 52, padR = 16, padT = 18, padB = 34;
-    const yMax = Math.ceil(Math.max(...bikes.map((b) => b.cc)) / 500) * 500;
-    const x = (seq) => padL + ((seq - 1) / (bikes.length - 1)) * (W - padL - padR);
-    const y = (cc) => padT + (1 - cc / yMax) * (H - padT - padB);
-
-    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Engine size by order of arrival" });
-
-    for (let cc = 0; cc <= yMax; cc += 500) {
-      svg.append(svgEl("line", { x1: padL, y1: y(cc), x2: W - padR, y2: y(cc), class: cc === 0 ? "baseline-line" : "gridline" }));
-      svg.append(svgEl("text", { x: padL - 8, y: y(cc) + 4, "text-anchor": "end", class: "axis-label" }, String(cc)));
+  function statusBlock() {
+    const now = nyNow();
+    const before = dayDiff(now.date, TRIP.start);
+    const after = dayDiff(TRIP.end, now.date);
+    let big, small;
+    if (before > 0) {
+      big = before === 1 ? "Tomorrow" : `${before} days to go`;
+      small = "New York, Wednesday 9 – Sunday 13 December";
+    } else if (after > 0) {
+      big = "Back home";
+      small = "Everything here still works as a scrapbook.";
+    } else {
+      const n = dayDiff(TRIP.start, now.date) + 1;
+      big = `${now.weekday}`;
+      small = `Day ${n} of 5 · ${fmtClock(now.minutes)} in New York`;
     }
-    [1, 10, 20, 30, 40, 50, bikes.length].forEach((n) => {
-      svg.append(svgEl("text", { x: x(n), y: H - padB + 18, "text-anchor": "middle", class: "axis-label" }, `#${n}`));
-    });
-
-    const biggest = bikes.reduce((a, b) => (b.cc > a.cc ? b : a));
-    bikes.forEach((b) => {
-      const dot = svgEl("circle", {
-        cx: x(b.seq), cy: y(b.cc), r: 5,
-        fill: brandColor(b.make), stroke: "var(--surface-1)", "stroke-width": 1.5,
-      });
-      bindTip(dot, () => bikeTip(b));
-      svg.append(dot);
-    });
-    svg.append(svgEl("text", {
-      x: x(biggest.seq), y: y(biggest.cc) - 10, "text-anchor": "middle", class: "bar-label",
-    }, `${biggest.make} ${biggest.cc}cc`));
-
-    $("#spreeChart").append(svg);
+    let light = "";
+    if (before <= 0 && after <= 0) {
+      const m = now.minutes;
+      if (m < SUNRISE) light = `<p class="light"><b>Still dark.</b> Sunrise is at ${fmtClock(SUNRISE)}.</p>`;
+      else if (m < SUNSET) light = `<p class="light"><b>${fmtSpan(SUNSET - m)} of daylight left.</b> Sunset is at ${fmtClock(SUNSET)} — do parks and quiet streets before then.</p>`;
+      else light = `<p class="light dark"><b>It's dark now.</b> Stick to busy streets; the map is showing after-dark guidance.</p>`;
+    } else if (before > 0) {
+      light = `<p class="light">In December the sun sets at <b>${fmtClock(SUNSET)}</b>. Every day plan below is built around that.</p>`;
+    }
+    return `<div class="status"><p class="eyebrow">${esc(small)}</p><h2>${esc(big)}</h2>${light}<div id="weather" class="weather"></div></div>`;
   }
 
-  /* ---------- category mix (horizontal bars, single hue) ---------- */
-
-  function renderCategoryChart() {
-    const counts = CATEGORIES.map((cat) => ({ cat, n: bikes.filter((b) => b.category === cat).length }))
-      .sort((a, b) => b.n - a.n);
-    const rowH = 34, barH = 18, padL = 92, padR = 40, padT = 6;
-    const W = 520, H = padT + counts.length * rowH + 10;
-    const maxN = Math.max(...counts.map((c) => c.n));
-    const x = (n) => padL + (n / maxN) * (W - padL - padR);
-
-    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Bikes per category" });
-    counts.forEach((c, i) => {
-      const yy = padT + i * rowH + (rowH - barH) / 2;
-      svg.append(svgEl("text", { x: padL - 10, y: yy + barH / 2 + 4, "text-anchor": "end", class: "bar-label" }, c.cat));
-      const bar = svgEl("rect", { x: padL, y: yy, width: x(c.n) - padL, height: barH, rx: 4, fill: "var(--seq-450)" });
-      bindTip(bar, () => {
-        const models = bikes.filter((b) => b.category === c.cat).map((b) => `${b.make} ${b.model}`);
-        return `<div class="tt-title">${c.cat} · ${c.n}</div><div class="tt-sub">${models.join("<br>")}</div>`;
-      });
-      svg.append(bar);
-      svg.append(svgEl("text", { x: x(c.n) + 8, y: yy + barH / 2 + 4, class: "bar-label" }, String(c.n)));
-    });
-    svg.append(svgEl("line", { x1: padL, y1: padT, x2: padL, y2: H - 8, class: "baseline-line" }));
-    $("#categoryChart").append(svg);
+  function actionGrid() {
+    const call = settings.phone
+      ? `<a class="act" href="tel:${esc(settings.phone.replace(/[^\d+]/g, ""))}"><span class="act-i">☎</span><b>Call ${esc(partnerName())}</b><small>${esc(settings.phone)}</small></a>`
+      : `<button class="act" data-act="settings"><span class="act-i">☎</span><b>Add a number</b><small>One-tap call button</small></button>`;
+    return `<div class="acts">
+      <a class="act act-main" href="${dirUrl(hotelQuery)}" target="_blank" rel="noopener"><span class="act-i">⌂</span><b>Take me home</b><small>Directions to The Set from here</small></a>
+      <button class="act" data-act="driver"><span class="act-i">A</span><b>Show a driver</b><small>Hotel address, large</small></button>
+      <button class="act" data-act="share"><span class="act-i">◎</span><b>Send my location</b><small>${settings.partner ? "To " + esc(settings.partner) : "Share a map pin"}</small></button>
+      ${call}
+    </div>`;
   }
 
-  /* ---------- marque tally (all brands, colour follows the marque) ---------- */
-
-  function renderBrandChart() {
-    const rowH = 26, barH = 15, padL = 104, padR = 36, padT = 6;
-    const W = 520, H = padT + brandsByCount.length * rowH + 10;
-    const maxN = brandCount.get(brandsByCount[0]);
-    const x = (n) => padL + (n / maxN) * (W - padL - padR);
-
-    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Bikes owned per marque" });
-    brandsByCount.forEach((m, i) => {
-      const n = brandCount.get(m);
-      const yy = padT + i * rowH + (rowH - barH) / 2;
-      svg.append(svgEl("text", { x: padL - 10, y: yy + barH / 2 + 4, "text-anchor": "end", class: "bar-label" }, m));
-      const bar = svgEl("rect", { x: padL, y: yy, width: x(n) - padL, height: barH, rx: 4, fill: brandColor(m) });
-      bindTip(bar, () => {
-        const models = bikes.filter((b) => b.make === m).map((b) => b.model);
-        return `<div class="tt-title">${m}</div><div class="tt-sub">${models.join("<br>")}</div>`;
-      });
-      svg.append(bar);
-      svg.append(svgEl("text", { x: x(n) + 8, y: yy + barH / 2 + 4, class: "bar-label" }, String(n)));
-    });
-    svg.append(svgEl("line", { x1: padL, y1: padT, x2: padL, y2: H - 8, class: "baseline-line" }));
-    $("#brandChart").append(svg);
+  function dayBlock() {
+    const d = DAYS[dayIndex];
+    const chips = DAYS.map((x, i) => `<button class="chip${i === dayIndex ? " on" : ""}" data-day="${i}">${x.short}${x.date === nyNow().date ? " ·" : ""}</button>`).join("");
+    const steps = d.steps.map((s) => {
+      const p = s.place && placeById[s.place];
+      const inner = `<span class="step-time">${esc(s.time)}</span><span class="step-body">${p ? `<b>${esc(p.name)}</b>` : ""}<span>${esc(s.text)}</span></span>`;
+      return p ? `<li><button class="step" data-place="${p.id}">${inner}<span class="chev" aria-hidden="true">›</span></button></li>` : `<li><div class="step">${inner}</div></li>`;
+    }).join("");
+    return `<section class="block">
+      <div class="chips" role="group" aria-label="Choose a day">${chips}</div>
+      <div class="plan">
+        <p class="eyebrow">${d.solo ? "Solo day" : "With " + esc(partnerName())}${d.date === "spare" ? " · swap in any day" : ""}</p>
+        <h3>${esc(d.title)}</h3>
+        <p class="sub">${esc(d.sub)}</p>
+        <p>${esc(d.intro)}</p>
+        <ol class="steps">${steps}</ol>
+        ${d.home ? `<div class="home-note"><b>Getting home</b><p>${esc(d.home)}</p></div>` : ""}
+      </div>
+    </section>`;
   }
 
-  /* ---------- vintages by decade (columns, single hue) ---------- */
+  function nearBlock() {
+    const from = origin();
+    const list = PLACES.map((p) => ({ p, km: distKm(from, p) })).sort((a, b) => a.km - b.km).slice(0, 4);
+    const rows = list.map(({ p, km }) => `<li><button class="row" data-place="${p.id}"><span class="glyph">${CATS[p.cat].glyph}</span><span class="row-body"><b>${esc(p.name)}</b><small>${fmtDist(km)} · ${esc(p.cost)}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`).join("");
+    return `<section class="block">
+      <div class="block-head"><h3>${meInNYC() ? "Near you now" : "Nearest to the hotel"}</h3><button class="link" data-act="near">${meInNYC() ? "Refresh" : "Use my location"}</button></div>
+      <ul class="rows">${rows}</ul>
+    </section>`;
+  }
 
-  function renderDecadeChart() {
-    const byDecade = new Map();
-    knownYears.forEach((b) => {
-      const d = Math.floor(b.year / 10) * 10;
-      byDecade.set(d, (byDecade.get(d) || 0) + 1);
+  function listingsBlock() {
+    return `<section class="block">
+      <div class="block-head"><h3>What's on today</h3></div>
+      <p class="muted">Live listings — pop-ups, gigs, one-off events — from people who update them daily.</p>
+      <ul class="rows">${LISTINGS.map((l) => `<li><a class="row" href="${l.url}" target="_blank" rel="noopener"><span class="row-body"><b>${esc(l.name)}</b><small>${esc(l.note)}</small></span><span class="chev" aria-hidden="true">↗</span></a></li>`).join("")}</ul>
+    </section>`;
+  }
+
+  function renderToday() {
+    if (dayIndex === null) dayIndex = defaultDayIndex();
+    $("#view-today").innerHTML = statusBlock() + actionGrid() + dayBlock() + nearBlock() + listingsBlock();
+    renderWeather();
+  }
+
+  /* ---------- weather (Open-Meteo, no key) ---------- */
+  const WMO = { 0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 48: "Fog", 51: "Drizzle", 53: "Drizzle", 55: "Drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Freezing rain", 67: "Freezing rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains", 80: "Showers", 81: "Showers", 82: "Heavy showers", 85: "Snow showers", 86: "Snow showers", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm" };
+  const cf = (c) => `${Math.round(c)}°C <span class="f">/ ${Math.round(c * 9 / 5 + 32)}°F</span>`;
+  let weather = null;
+  function loadWeather() {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${HOTEL.lat}&longitude=${HOTEL.lng}&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=${encodeURIComponent(TRIP.tz)}&forecast_days=16`;
+    fetch(url).then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { weather = j; renderWeather(); }).catch(() => {});
+  }
+  function renderWeather() {
+    const el = $("#weather");
+    if (!el) return;
+    const now = nyNow();
+    const inTrip = dayDiff(now.date, TRIP.start) <= 0 && dayDiff(TRIP.end, now.date) <= 0;
+    if (!weather) {
+      el.innerHTML = `<span>Typical for these dates: 3–8°C <span class="f">/ 37–46°F</span>, colder in the wind.</span>`;
+      return;
+    }
+    const d = weather.daily;
+    if (inTrip) {
+      const c = weather.current, i = Math.max(0, d.time.indexOf(now.date));
+      el.innerHTML = `<span><b>${cf(c.temperature_2m)}</b> ${esc(WMO[c.weather_code] || "")} · feels like ${cf(c.apparent_temperature)}</span><span>Today ${Math.round(d.temperature_2m_min[i])}–${Math.round(d.temperature_2m_max[i])}°C · ${d.precipitation_probability_max[i] ?? 0}% chance of rain or snow</span>`;
+      return;
+    }
+    const days = DAYS.filter((x) => d.time.includes(x.date)).map((x) => {
+      const i = d.time.indexOf(x.date);
+      return `<span class="wx"><b>${x.short}</b> ${Math.round(d.temperature_2m_max[i])}° <small>${esc(WMO[d.weather_code[i]] || "")}</small></span>`;
     });
-    const decades = [];
-    for (let d = 1950; d <= NOW; d += 10) decades.push({ d, n: byDecade.get(d) || 0 });
+    el.innerHTML = days.length
+      ? `<div class="wx-row">${days.join("")}</div><span>Forecast highs in °C — it firms up nearer the day.</span>`
+      : `<span>Typical for these dates: 3–8°C <span class="f">/ 37–46°F</span>, colder in the wind. A live forecast appears here about two weeks out.</span>`;
+  }
 
-    const W = 520, H = 280, padL = 40, padR = 20, padT = 16, padB = 34;
-    const maxN = Math.max(...decades.map((c) => c.n));
-    const plotW = W - padL - padR;
-    const slot = plotW / decades.length;
-    const barW = Math.min(48, slot - 12);
-    const y = (n) => padT + (1 - n / maxN) * (H - padT - padB);
+  /* =========================================================
+     EXPLORE
+     ========================================================= */
+  let filter = "all";
+  const FILTERS = [["all", "All"], ["saved", "♥ Saved"], ["festive", "Festive"], ["free", "Free"], ["indoor", "Indoors"], ["sights", "Sights"], ["views", "Views"], ["museums", "Museums"], ["walks", "Walks"], ["food", "Food"], ["shops", "Shops"], ["shows", "Shows"]];
+  function matches(p) {
+    if (filter === "all") return true;
+    if (filter === "saved") return saved.has(p.id);
+    if (filter === "festive") return !!p.festive;
+    if (filter === "free") return !!p.free;
+    if (filter === "indoor") return !!p.indoor;
+    return p.cat === filter;
+  }
+  function renderExplore() {
+    const from = origin();
+    const dark = isDarkNow();
+    const list = PLACES.filter(matches).map((p) => ({ p, km: distKm(from, p) })).sort((a, b) => a.km - b.km);
+    const cards = list.map(({ p, km }) => {
+      const level = p.zone ? (dark ? p.zone.night : p.zone.day) : "easy";
+      return `<li><article class="card">
+        <button class="card-main" data-place="${p.id}">
+          <span class="card-top"><span class="eyebrow">${CATS[p.cat].glyph} ${esc(CATS[p.cat].label)} · ${esc(p.area)}</span></span>
+          <h3>${esc(p.name)}</h3>
+          <p>${esc(p.blurb)}</p>
+          <span class="meta"><span>${fmtDist(km)} ${meInNYC() ? "from you" : "from hotel"}</span><span>${esc(p.cost)}</span>${p.zone && level !== "easy" ? lv(level, dark ? (level === "skip" ? "Not after dark" : "Stay sharp tonight") : "Stay sharp") : ""}</span>
+        </button>
+        <button class="heart${saved.has(p.id) ? " on" : ""}" data-save="${p.id}" aria-pressed="${saved.has(p.id)}" aria-label="Save ${esc(p.name)}">♥</button>
+      </article></li>`;
+    }).join("");
+    $("#view-explore").innerHTML = `
+      <div class="filterbar"><div class="chips scroll" role="group" aria-label="Filter">${FILTERS.map(([k, l]) => `<button class="chip${k === filter ? " on" : ""}" data-filter="${k}">${l}</button>`).join("")}</div></div>
+      <div class="pad">
+        <p class="muted">${list.length} place${list.length === 1 ? "" : "s"}, nearest first${meInNYC() ? "" : " (from the hotel)"}. <button class="link" data-act="near">${meInNYC() ? "Update my location" : "Sort from where I am"}</button></p>
+        ${list.length ? `<ul class="cards">${cards}</ul>` : `<p class="empty">Nothing saved yet. Tap the ♥ on anything you like the look of and it'll collect here.</p>`}
+      </div>`;
+  }
 
-    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Bikes by decade of manufacture" });
-    svg.append(svgEl("line", { x1: padL, y1: y(0), x2: W - padR, y2: y(0), class: "baseline-line" }));
-    decades.forEach((c, i) => {
-      const cx = padL + slot * i + slot / 2;
-      if (c.n > 0) {
-        const bar = svgEl("rect", {
-          x: cx - barW / 2, y: y(c.n), width: barW, height: y(0) - y(c.n), rx: 4, fill: "var(--seq-450)",
-        });
-        bindTip(bar, () => {
-          const models = knownYears.filter((b) => Math.floor(b.year / 10) * 10 === c.d).map((b) => `’${String(b.year).slice(2)} ${b.make} ${b.model}`);
-          return `<div class="tt-title">${c.d}s · ${c.n}</div><div class="tt-sub">${models.join("<br>")}</div>`;
-        });
-        svg.append(bar);
-        svg.append(svgEl("text", { x: cx, y: y(c.n) - 7, "text-anchor": "middle", class: "bar-label" }, String(c.n)));
+  /* ---------- place sheet ---------- */
+  function openPlace(id) {
+    const p = placeById[id];
+    if (!p) return;
+    const z = p.zone;
+    const zoneHtml = z ? `<div class="zone-line"><span>By day ${lv(z.day)}</span><span>After dark ${lv(z.night)}</span></div><p class="muted small">${esc(z.name)} — ${esc(z.note)}</p>` : "";
+    openSheet(`
+      <p class="eyebrow">${CATS[p.cat].glyph} ${esc(CATS[p.cat].label)} · ${esc(p.area)}</p>
+      <h2 id="sheetTitle">${esc(p.name)}</h2>
+      <p>${esc(p.blurb)}</p>
+      <div class="tipbox"><b>Tip</b><p>${esc(p.tip)}</p></div>
+      <dl class="facts">
+        <div><dt>When</dt><dd>${esc(p.when)}</dd></div>
+        <div><dt>Cost</dt><dd>${esc(p.cost)}</dd></div>
+        <div><dt>From the hotel</dt><dd>${bullets(p.lines)} ${esc(p.go)}</dd></div>
+      </dl>
+      ${zoneHtml}
+      <div class="btns">
+        <a class="btn primary" href="${placeDir(p)}" target="_blank" rel="noopener">Directions from here</a>
+        <button class="btn" data-showmap="${p.id}">Show on map</button>
+        <a class="btn" href="${p.url}" target="_blank" rel="noopener">Website ↗</a>
+        <button class="btn${saved.has(p.id) ? " on" : ""}" data-save="${p.id}" aria-pressed="${saved.has(p.id)}">${saved.has(p.id) ? "♥ Saved" : "♡ Save"}</button>
+      </div>`);
+  }
+
+  let lastFocus = null;
+  function openSheet(html) {
+    lastFocus = document.activeElement;
+    const s = $("#sheet");
+    s.innerHTML = `<button class="sheet-close" data-act="close" aria-label="Close">×</button><div class="sheet-body">${html}</div>`;
+    s.setAttribute("aria-labelledby", "sheetTitle");
+    s.hidden = false; $("#scrim").hidden = false;
+    s.scrollTop = 0;
+    $(".sheet-close", s).focus();
+  }
+  function closeSheet() {
+    $("#sheet").hidden = true; $("#scrim").hidden = true; $("#driver").hidden = true;
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  function openSettings() {
+    openSheet(`
+      <h2 id="sheetTitle">Make it yours</h2>
+      <p class="muted">Stays on this phone only. Nothing is sent anywhere.</p>
+      <form id="settingsForm" class="form">
+        <label>Your name<input name="her" autocomplete="given-name" value="${esc(settings.her)}" placeholder="Shown in the title"></label>
+        <label>Who to call<input name="partner" value="${esc(settings.partner)}" placeholder="His name"></label>
+        <label>Their mobile number<input name="phone" type="tel" inputmode="tel" value="${esc(settings.phone)}" placeholder="+1 … or +44 …"></label>
+        <button class="btn primary" type="submit">Save</button>
+      </form>
+      <p class="muted small">Tip: also share your live location for the day in WhatsApp, Google Maps or Find My — it updates on its own while you walk.</p>`);
+  }
+
+  function openDriver() {
+    lastFocus = document.activeElement;
+    const d = $("#driver");
+    d.innerHTML = `<button class="sheet-close" data-act="close" aria-label="Close">×</button>
+      <p class="eyebrow">Please take me to</p>
+      <p class="driver-big">10th Avenue<br>&amp; 35th Street</p>
+      <p class="driver-mid">${esc(HOTEL.name)} · ${esc(HOTEL.address)}</p>
+      <p class="driver-small">${esc(HOTEL.cross)}, ${esc(HOTEL.area)}<br>${esc(HOTEL.cityLine)}</p>
+      <button class="btn" data-act="copy">Copy address</button>`;
+    d.hidden = false;
+    $(".sheet-close", d).focus();
+  }
+
+  function shareLocation() {
+    toast("Finding you…");
+    locate((pos) => {
+      const url = `https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+      const text = `I'm here right now: ${url}`;
+      if (navigator.share) { navigator.share({ text }).catch(() => {}); return; }
+      if (settings.phone) { location.href = `sms:${settings.phone.replace(/[^\d+]/g, "")}?&body=${encodeURIComponent(text)}`; return; }
+      copy(text, "Location link copied — paste it into a message.");
+    });
+  }
+  function copy(text, msg) {
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast(msg), () => toast(text));
+  }
+
+  /* =========================================================
+     MAP
+     ========================================================= */
+  let map = null, zoneLayers = [], markers = {}, meMarker = null;
+  let mapMode = null; // "day" | "night"; null = follow the clock
+  const currentMode = () => mapMode || (isDarkNow() ? "night" : "day");
+
+  function zoneStyle(z) {
+    const level = z[currentMode()];
+    return { color: LEVEL[level].color, weight: level === "skip" ? 2 : 1, dashArray: level === "skip" ? "6 5" : null, opacity: 0.9, fillColor: LEVEL[level].color, fillOpacity: level === "easy" ? 0.16 : level === "sharp" ? 0.3 : 0.38 };
+  }
+  function paintZones() {
+    zoneLayers.forEach(({ z, layer }) => layer.setStyle(zoneStyle(z)));
+    const m = currentMode();
+    $("#modeDay").setAttribute("aria-pressed", m === "day");
+    $("#modeNight").setAttribute("aria-pressed", m === "night");
+    $("#view-map").classList.toggle("night", m === "night");
+  }
+  function showZone(z) {
+    const m = currentMode();
+    const c = $("#zoneCard");
+    c.innerHTML = `<button class="sheet-close" data-act="zoneclose" aria-label="Close">×</button>
+      <p class="eyebrow">${m === "night" ? "After dark" : "Daytime"}</p>
+      <h3>${esc(z.name)} ${lv(z[m])}</h3>
+      <p>${esc(z.note)}</p>
+      <p class="muted small">${m === "night" ? "By day: " + LEVEL[z.day].label : "After dark: " + LEVEL[z.night].label}</p>`;
+    c.hidden = false;
+  }
+
+  function initMap() {
+    if (map || typeof L === "undefined") return;
+    map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 11, maxZoom: 18 }).setView([HOTEL.lat, HOTEL.lng], 14);
+    map.attributionControl.setPrefix(false);
+    const carto = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      subdomains: "abcd", maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+    }).addTo(map);
+    let fellBack = false;
+    carto.on("tileerror", () => {
+      if (fellBack || !navigator.onLine) return;
+      fellBack = true;
+      map.removeLayer(carto);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map).bringToBack();
+    });
+
+    ZONES.forEach((z) => {
+      const layer = L.polygon(z.poly, zoneStyle(z)).addTo(map);
+      layer.on("click", (e) => { L.DomEvent.stopPropagation(e); showZone(z); });
+      zoneLayers.push({ z, layer });
+    });
+    map.on("click", () => { $("#zoneCard").hidden = true; });
+
+    PLACES.forEach((p) => {
+      const icon = L.divIcon({ className: "pin-wrap", html: `<span class="pin">${CATS[p.cat].glyph}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] });
+      markers[p.id] = L.marker([p.lat, p.lng], { icon, title: p.name, alt: p.name }).addTo(map).on("click", () => openPlace(p.id));
+    });
+    L.marker([HOTEL.lat, HOTEL.lng], {
+      icon: L.divIcon({ className: "pin-wrap", html: `<span class="pin pin-home">⌂</span>`, iconSize: [42, 42], iconAnchor: [21, 21] }),
+      title: "The Set — your hotel", zIndexOffset: 1000,
+    }).addTo(map).on("click", openDriver);
+
+    paintZones();
+  }
+  function showMe(pan) {
+    locate((pos) => {
+      if (!map) return;
+      if (!meMarker) meMarker = L.marker([pos.lat, pos.lng], { icon: L.divIcon({ className: "pin-wrap", html: `<span class="me-dot"></span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 2000, title: "You are here" }).addTo(map);
+      else meMarker.setLatLng([pos.lat, pos.lng]);
+      if (pan) {
+        if (meInNYC()) {
+          map.setView([pos.lat, pos.lng], 16, { animate: false });
+          const z = zoneAt(pos.lat, pos.lng);
+          if (z) { showZone(z); map.panBy([0, $("#zoneCard").offsetHeight / 2], { animate: false }); }
+        } else toast("You're not in New York yet — showing the hotel instead.");
       }
-      svg.append(svgEl("text", { x: cx, y: H - padB + 18, "text-anchor": "middle", class: "axis-label" }, `${String(c.d).slice(2)}s`));
-    });
-    $("#decadeChart").append(svg);
-    $("#decadeNote").textContent =
-      `${bikes.length - knownYears.length} bikes without a recorded model year are not counted here.`;
-  }
-
-  /* ---------- bought it again ---------- */
-
-  function renderRepeats() {
-    const byModel = new Map();
-    bikes.forEach((b) => {
-      const key = `${b.make} ${b.model}`;
-      if (!byModel.has(key)) byModel.set(key, []);
-      byModel.get(key).push(b);
-    });
-    const repeats = [...byModel.entries()].filter(([, v]) => v.length > 1)
-      .sort((a, b) => b[1].length - a[1].length);
-    const row = $("#repeatRow");
-    repeats.forEach(([name, list]) => {
-      const c = el("div", { class: "record-card" });
-      c.append(
-        el("div", { class: "rec-label" }, `owned ×${list.length}`),
-        el("div", { class: "rec-value" }, name),
-        el("div", { class: "rec-note" }, `arrivals #${list.map((b) => b.seq).join(", #")}`)
-      );
-      row.append(c);
     });
   }
 
-  /* ---------- records ---------- */
+  /* =========================================================
+     SAFETY
+     ========================================================= */
+  function renderSafety() {
+    const dark = isDarkNow();
+    const group = (level) => ZONES.filter((z) => z.night === level).map((z) => `<li><button class="row" data-zone="${z.id}"><span class="row-body"><b>${esc(z.name)}</b><small>By day: ${LEVEL[z.day].label}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`).join("");
+    $("#view-safety").innerHTML = `<div class="pad">
+      <div class="status">
+        <p class="eyebrow">The honest version</p>
+        <h2>New York is safer than its reputation</h2>
+        <p>It's one of the safest big cities in America, and the places in this guide are the busiest, most-watched parts of it. Most of what follows is about avoiding hassle, not danger. A handful of spots are worth going around, mainly after dark — and one of them is right next to the hotel, so read that one.</p>
+      </div>
 
-  function renderRecords() {
-    const biggest = bikes.reduce((a, b) => (b.cc > a.cc ? b : a));
-    const smallest = bikes.reduce((a, b) => (b.cc < a.cc ? b : a));
-    const avgCc = Math.round(bikes.reduce((s, b) => s + b.cc, 0) / bikes.length);
-    const totalCc = bikes.reduce((s, b) => s + b.cc, 0);
-    const records = [
-      { label: "The elder", value: `${oldest.make} ${oldest.model}`, note: `${oldest.year} — the oldest machine in the story` },
-      { label: "Box fresh", value: `${newest.make} ${newest.model}`, note: `${newest.year} — the newest` },
-      { label: "The monster", value: `${biggest.make} ${biggest.model}`, note: `${biggest.cc}cc — the biggest engine` },
-      { label: "The tiddler", value: `${smallest.make} ${smallest.model}`, note: `${smallest.cc}cc — the smallest` },
-      { label: "Average engine", value: `${avgCc}cc`, note: "across all 57" },
-      { label: "Lifetime displacement", value: `${(totalCc / 1000).toFixed(1)} litres`, note: "all engines combined" },
-    ];
-    const row = $("#recordsRow");
-    records.forEach((r) => {
-      const c = el("div", { class: "record-card" });
-      c.append(
-        el("div", { class: "rec-label" }, r.label),
-        el("div", { class: "rec-value" }, r.value),
-        el("div", { class: "rec-note" }, r.note)
-      );
-      row.append(c);
-    });
+      <div class="callout">
+        <p class="eyebrow">Read this one</p>
+        <h3>Getting back to the hotel at night</h3>
+        <p>The hotel is on a quiet stretch of 10th Avenue. South and west of it is Hudson Yards — bright and patrolled. North and east of it are the Lincoln Tunnel ramps and Port Authority — empty and scruffy after dark.</p>
+        <ul class="ticks">
+          <li><b>Best:</b> the 7 train to Hudson Yards (last stop), then five minutes up Hudson Boulevard.</li>
+          <li><b>On foot:</b> come along 34th Street, which is wide, lit and busy, and turn up 10th Avenue for one block.</li>
+          <li><b>Don't:</b> walk from Times Square down 8th or 9th Avenue, or cut across the blocks between 36th and 41st Street.</li>
+          <li><b>After 10 pm:</b> take a cab to the door.</li>
+        </ul>
+        <button class="btn" data-zone="tunnel">Show me on the map</button>
+      </div>
+
+      <h3 class="h">Six habits</h3>
+      <ol class="rules">${SAFETY_RULES.map((r) => `<li><b>${esc(r.h)}</b><p>${esc(r.p)}</p></li>`).join("")}</ol>
+
+      <h3 class="h">Area by area, after dark</h3>
+      <p class="muted">It is ${dark ? "dark in New York right now" : "daylight in New York right now"}. Tap any area to see it on the map.</p>
+      <h4 class="lvh">${lv("skip", "Skip after dark")} <span>go round, go under, or take a cab</span></h4>
+      <ul class="rows">${group("skip")}</ul>
+      <h4 class="lvh">${lv("sharp")} <span>fine — bag closed, main streets, don't linger</span></h4>
+      <ul class="rows">${group("sharp")}</ul>
+      <h4 class="lvh">${lv("easy")} <span>busy and comfortable into the evening</span></h4>
+      <ul class="rows">${group("easy")}</ul>
+
+      <h3 class="h">On the subway</h3>
+      <ul class="ticks">${SAFETY_SUBWAY.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
+
+      <h3 class="h">Hustles you'll actually meet</h3>
+      <ol class="rules plain">${SCAMS.map((r) => `<li><b>${esc(r.h)}</b><p>${esc(r.p)}</p></li>`).join("")}</ol>
+
+      <h3 class="h">If something goes wrong</h3>
+      <ul class="rows">${EMERGENCY.map((e) => {
+        const body = `<span class="row-body"><small>${esc(e.label)}</small><b>${esc(e.value)}</b><small>${esc(e.note)}</small></span>`;
+        if (e.tel) return `<li><a class="row" href="tel:${e.tel}">${body}<span class="chev">☎</span></a></li>`;
+        return `<li><a class="row" href="${searchUrl(e.map)}" target="_blank" rel="noopener">${body}<span class="chev">↗</span></a></li>`;
+      }).join("")}</ul>
+
+      <p class="disclaimer">These zones are a local-knowledge guide to how areas feel on foot, drawn in broad strokes. They aren't live crime data or a guarantee, and things change block by block. Your own judgement on the day beats any map.</p>
+    </div>`;
   }
 
-  /* ---------- table view ---------- */
-
-  function renderTable() {
-    const table = $("#bikeTable");
-    const head = el("tr");
-    [["#", true], ["Make", false], ["Model", false], ["Model year", true], ["cc", true], ["Engine", false], ["Category", false]]
-      .forEach(([h, num]) => head.append(el("th", { class: num ? "num" : "" }, h)));
-    const thead = el("thead"); thead.append(head);
-    const tbody = el("tbody");
-    bikes.forEach((b) => {
-      const tr = el("tr");
-      tr.append(
-        el("td", { class: "num" }, String(b.seq)),
-        el("td", null, b.make),
-        el("td", null, b.model),
-        el("td", { class: "num" }, b.year !== null ? String(b.year) : "—"),
-        el("td", { class: "num" }, String(b.cc)),
-        el("td", null, b.engine),
-        el("td", null, b.category)
-      );
-      tbody.append(tr);
-    });
-    table.append(thead, tbody);
-
-    const btn = $("#tableToggle");
-    btn.addEventListener("click", () => {
-      const panel = $("#tablePanel");
-      panel.hidden = !panel.hidden;
-      btn.setAttribute("aria-pressed", panel.hidden ? "false" : "true");
-      if (!panel.hidden) panel.scrollIntoView({ behavior: "smooth" });
-    });
+  /* =========================================================
+     TRANSIT & TIPS
+     ========================================================= */
+  function renderTips() {
+    const list = (items) => `<ol class="rules plain">${items.map((r) => `<li><b>${esc(r.h)}</b><p>${esc(r.p)}</p></li>`).join("")}</ol>`;
+    $("#view-tips").innerHTML = `<div class="pad">
+      <div class="status">
+        <p class="eyebrow">Getting around</p>
+        <h2>Two stations and one bus</h2>
+        <p>Nearly everything in this guide is reachable from one of these. Each place's page tells you which to use.</p>
+      </div>
+      <ul class="stations">${TRANSIT.stations.map((s) => `<li><div class="st-head"><span class="st-lines">${bullets(s.lines)}</span><b>${esc(s.name)}</b><small>${esc(s.walk)}</small></div><p>${esc(s.text)}</p></li>`).join("")}</ul>
+      <h3 class="h">Paying</h3>${list(TRANSIT.pay)}
+      <h3 class="h">Reading the subway</h3>${list(TRANSIT.subway)}
+      <h3 class="h">On foot</h3>${list(TRANSIT.walking)}
+      <h3 class="h">Cabs</h3>${list(TRANSIT.cabs)}
+      <h3 class="h">Good to know</h3>${list(TRANSIT.money)}
+      <div class="btns"><a class="btn" href="https://new.mta.info/map/5256" target="_blank" rel="noopener">Official subway map ↗</a><a class="btn" href="https://citymapper.com/nyc" target="_blank" rel="noopener">Citymapper ↗</a></div>
+    </div>`;
   }
 
-  /* ---------- boot ---------- */
+  /* =========================================================
+     NAVIGATION & EVENTS
+     ========================================================= */
+  const RENDER = { today: renderToday, explore: renderExplore, safety: renderSafety, tips: renderTips, map: () => {} };
+  let view = "today";
+  function show(name) {
+    view = name;
+    document.querySelectorAll(".view").forEach((v) => { v.hidden = v.id !== "view-" + name; });
+    document.querySelectorAll(".tabs button").forEach((b) => { if (b.dataset.view === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    document.body.classList.toggle("on-map", name === "map");
+    RENDER[name]();
+    if (name === "map") { initMap(); if (map) { map.invalidateSize(); paintZones(); } } else window.scrollTo(0, 0);
+  }
+  function focusOnMap(latlng, zoom, zone) {
+    closeSheet();
+    show("map");
+    if (!map) return;
+    if (zone) { showZone(zone); map.fitBounds(L.polygon(zone.poly).getBounds(), { paddingTopLeft: [24, 24], paddingBottomRight: [24, $("#zoneCard").offsetHeight + 36] }); } else map.setView(latlng, zoom);
+  }
+  function toggleSave(id) {
+    if (saved.has(id)) saved.delete(id); else saved.add(id);
+    store.set("saved", [...saved]);
+  }
+  function applyTitle() {
+    const t = settings.her ? `${settings.her}'s New York` : "Your New York";
+    $("#appTitle").textContent = t;
+    document.title = t;
+  }
 
-  renderKpis();
-  renderLegend();
-  renderVintage();
-  renderFilters();
-  renderGarage();
-  renderSpree();
-  renderCategoryChart();
-  renderBrandChart();
-  renderDecadeChart();
-  renderRepeats();
-  renderRecords();
-  renderTable();
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-view],[data-place],[data-save],[data-day],[data-filter],[data-act],[data-zone],[data-showmap]");
+    if (!t) return;
+    const d = t.dataset;
+    if (d.view) return show(d.view);
+    if (d.save) {
+      toggleSave(d.save);
+      if (!$("#sheet").hidden) openPlace(d.save);
+      if (view === "explore") renderExplore();
+      return;
+    }
+    if (d.place) return openPlace(d.place);
+    if (d.day) { dayIndex = Number(d.day); renderToday(); return; }
+    if (d.filter) { filter = d.filter; renderExplore(); return; }
+    if (d.showmap) { const p = placeById[d.showmap]; return focusOnMap([p.lat, p.lng], 16); }
+    if (d.zone) { const z = ZONES.find((x) => x.id === d.zone); mapMode = "night"; return focusOnMap(null, null, z); }
+    switch (d.act) {
+      case "close": return closeSheet();
+      case "zoneclose": $("#zoneCard").hidden = true; return;
+      case "settings": return openSettings();
+      case "driver": return openDriver();
+      case "share": return shareLocation();
+      case "copy": return copy(`${HOTEL.name}, ${HOTEL.address} (${HOTEL.cross}), ${HOTEL.cityLine}`, "Address copied.");
+      case "near": toast("Finding you…"); return locate(() => { if (!meInNYC()) toast("You're not in New York yet — sorting from the hotel."); RENDER[view](); });
+    }
+  });
+  document.addEventListener("submit", (e) => {
+    if (e.target.id !== "settingsForm") return;
+    e.preventDefault();
+    const f = new FormData(e.target);
+    settings = { her: f.get("her").trim(), partner: f.get("partner").trim(), phone: f.get("phone").trim() };
+    store.set("settings", settings);
+    applyTitle(); closeSheet(); RENDER[view](); toast("Saved.");
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+  $("#scrim").addEventListener("click", closeSheet);
+  $("#settingsBtn").addEventListener("click", openSettings);
+  $("#modeDay").addEventListener("click", () => { mapMode = "day"; paintZones(); $("#zoneCard").hidden = true; });
+  $("#modeNight").addEventListener("click", () => { mapMode = "night"; paintZones(); $("#zoneCard").hidden = true; });
+  $("#locateBtn").addEventListener("click", () => showMe(true));
+  $("#homeBtn").addEventListener("click", () => map && map.setView([HOTEL.lat, HOTEL.lng], 15));
+
+  /* ---------- go ---------- */
+  applyTitle();
+  show("today");
+  loadWeather();
+  // Refresh the clock-driven bits once a minute while the app is open.
+  setInterval(() => {
+    const st = $("#view-today .status");
+    if (st) { st.outerHTML = statusBlock(); renderWeather(); }
+    if (view === "map" && !mapMode) paintZones();
+  }, 60000);
+  // If she has already granted location, quietly pick it up; never prompt on load.
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: "geolocation" }).then((s) => { if (s.state === "granted") locate(() => { if (view !== "map") RENDER[view](); }, true); }).catch(() => {});
+  }
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+
 })();
