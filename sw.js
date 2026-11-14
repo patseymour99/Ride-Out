@@ -1,9 +1,9 @@
 /* Offline support: the guide itself is cached so it opens with no signal;
    map tiles are kept as they're viewed. Network-first, so updates show up at once. */
-const SHELL = "nyc-shell-v3";
-const TILES = "nyc-tiles-v2";
-const FILES = ["./", "index.html", "css/style.css", "js/data.js", "js/app.js", "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "icons/icon.svg", "icons/icon-180.png", "manifest.webmanifest"];
-const TILE_HOSTS = /tile\.openstreetmap\.org/;
+const SHELL = "nyc-shell-v4";
+const TILES = "nyc-tiles-v3";
+const FILES = ["./", "index.html", "css/style.css", "js/data.js", "js/app.js", "vendor/maplibre/maplibre-gl.js", "vendor/maplibre/maplibre-gl.css", "icons/icon.svg", "icons/icon-180.png", "manifest.webmanifest"];
+const TILE_HOSTS = /tiles\.openfreemap\.org/;
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -27,7 +27,7 @@ self.addEventListener("fetch", (e) => {
       const hit = await cache.match(req);
       if (hit) return hit;
       const res = await fetch(req);
-      if (res.ok || res.type === "opaque") { cache.put(req, res.clone()); trim(cache, 900); }
+      if (res.ok || res.type === "opaque") { cache.put(req, res.clone()); trim(cache, 1500); }
       return res;
     }));
     return;

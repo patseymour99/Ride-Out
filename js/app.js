@@ -385,48 +385,149 @@
   }
 
   /* =========================================================
-     MAP
+     MAP  (MapLibre GL + OpenFreeMap vector tiles — no key needed)
      ========================================================= */
-  let map = null, zoneLayers = [], markers = {}, meMarker = null;
-  let placeLayer = null, routeLayer = null, homeWalk = null, tiles = {};
+  const BEARING = 29; // turn the map so Manhattan's avenues run straight up the screen: uptown is up
+  const BASE = { day: "https://tiles.openfreemap.org/styles/positron", night: "https://tiles.openfreemap.org/styles/dark" };
+  const INK = "#0e1116", AMBER = "#e08a00", RED = "#d23b2c", GOLD = "#e8b64c";
+  let map = null, mapReady = false, styleMode = null, meMarker = null, activeMarker = null, hotelMarker = null;
+  let stopMarkers = [], stationMarkers = [];
   let mapMode = null; // "day" | "night"; null = follow the clock
   let mapFilter = "all", activeId = null, quietUntil = 0;
   const currentMode = () => mapMode || (isDarkNow() ? "night" : "day");
   const planDay = () => DAYS[dayIndex === null ? defaultDayIndex() : dayIndex];
   const planStops = () => [...new Set(planDay().steps.map((s) => s.place).filter(Boolean))].map((id) => placeById[id]);
+  const ll = (p) => [p.lng, p.lat];
+  const HOME_VIEW = { center: [-73.9905, 40.7555], zoom: 13.3 }; // the hotel and Midtown
+  const ZONE_LABEL = { home: "Hudson Yards", tunnel: "Lincoln Tunnel", pabt: "Port Authority", penn: "Penn Station", garment: "Garment District", tsq: "Times Square", hk: "Hell's Kitchen", midtown: "Midtown", nomad: "NoMad", chelsea: "Chelsea", flatiron: "Flatiron", park: "Central Park", uws: "Upper West Side", ues: "Upper East Side", village: "West Village", eastvillage: "East Village", soho: "SoHo", chinatown: "Chinatown", fidi: "Financial District", dumbo: "DUMBO" };
+  const SHORT = { "hudson-yards": "Hudson Yards Shops", edge: "Edge", mercado: "Little Spain", highline: "High Line", whitney: "Whitney", moynihan: "Moynihan Food Hall", "bryant-park": "Bryant Park", nypl: "Public Library", "grand-central": "Grand Central", summit: "SUMMIT", "rock-tree": "Rockefeller Tree", "fifth-windows": "Fifth Ave windows", "st-patricks": "St. Patrick's", "radio-city": "Radio City", broadway: "Broadway", "empire-state": "Empire State", macys: "Macy's", morgan: "Morgan Library", "hells-kitchen": "Restaurant Row", "columbus-circle": "Columbus Circle Market", "central-park": "Central Park loop", met: "The Met", amnh: "Natural History Museum", "lincoln-center": "Lincoln Center", "union-square": "Union Sq Market", flatiron: "Flatiron & Eataly", "west-village": "West Village", "washington-square": "Washington Sq", soho: "SoHo", "911": "9/11 Memorial", "brooklyn-bridge": "Brooklyn Bridge", ferry: "Staten Island Ferry" };
+  const mapPad = (bottom) => ({ top: 128, bottom: bottom || 150, left: 34, right: 34 });
 
-  /* Pull each area in slightly and round its corners, so neighbouring areas
-     read as separate, soft-edged districts rather than hard boxes. */
+  /* Pull each area in slightly and round its corners so it reads as a soft district, not a hard box. */
   function soften(poly) {
-    const n = poly.length, K = 0.757; // longitude degrees are shorter than latitude degrees here
+    const n = poly.length, K = 0.757;
     const cy = poly.reduce((s, p) => s + p[0], 0) / n, cx = poly.reduce((s, p) => s + p[1], 0) / n;
-    const pts = poly.map(([y, x]) => [cy + (y - cy) * 0.972, cx + (x - cx) * 0.972]);
+    const pts = poly.map(([y, x]) => [cy + (y - cy) * 0.975, cx + (x - cx) * 0.975]);
     const len = (a, b) => Math.hypot(a[0] - b[0], (a[1] - b[1]) * K);
     const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
     const out = [];
     for (let i = 0; i < n; i++) {
       const p0 = pts[(i + n - 1) % n], p1 = pts[i], p2 = pts[(i + 1) % n];
-      const a = lerp(p1, p0, Math.min(0.45, 0.0009 / len(p1, p0)));
-      const b = lerp(p1, p2, Math.min(0.45, 0.0009 / len(p1, p2)));
+      const a = lerp(p1, p0, Math.min(0.45, 0.0008 / len(p1, p0)));
+      const b = lerp(p1, p2, Math.min(0.45, 0.0008 / len(p1, p2)));
       for (let s = 0; s <= 6; s++) { const t = s / 6; out.push(lerp(lerp(a, p1, t), lerp(p1, b, t), t)); }
     }
     return out;
   }
+  const zonesGeo = () => ({
+    type: "FeatureCollection",
+    features: ZONES.map((z) => {
+      const ring = soften(z.poly).map(([y, x]) => [x, y]);
+      ring.push(ring[0]);
+      return { type: "Feature", properties: { id: z.id, day: z.day, night: z.night }, geometry: { type: "Polygon", coordinates: [ring] } };
+    }),
+  });
+  const lineGeo = (pts) => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: pts } });
 
-  function zoneStyle(z) {
-    const level = z[currentMode()], night = currentMode() === "night";
-    const fill = { easy: night ? 0.2 : 0.13, sharp: night ? 0.36 : 0.26, skip: night ? 0.42 : 0.32 }[level];
-    return { color: LEVEL[level].color, weight: 1.5, opacity: 0.75, dashArray: level === "skip" ? "5 6" : null, lineJoin: "round", fillColor: LEVEL[level].color, fillOpacity: fill };
+  /* ---- what is on the map right now ---- */
+  function mapPlaces() {
+    if (mapFilter === "plan") return planStops();
+    const from = origin();
+    return PLACES.filter((p) => mapFilter === "all" || (mapFilter === "festive" ? p.festive : p.cat === mapFilter))
+      .map((p) => ({ p, km: distKm(from, p) })).sort((a, b) => a.km - b.km).map((x) => x.p);
+  }
+  const placesGeo = (list) => ({
+    type: "FeatureCollection",
+    features: list.map((p, i) => ({ type: "Feature", properties: { id: p.id, name: SHORT[p.id] || p.name, rank: i, active: p.id === activeId ? 1 : 0 }, geometry: { type: "Point", coordinates: ll(p) } })),
+  });
+
+  /* ---- basemap + overlays; rebuilt whenever the basemap style changes (day <-> night) ---- */
+  function tuneBase() {
+    const night = styleMode === "night";
+    map.getStyle().layers.forEach((l) => {
+      if (/shield|airport|oneway|boundary|aeroway|ne2|water_name|waterway_line_label/.test(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
+      // Street names are how she will navigate: make them a touch larger and darker than the stock style.
+      if (l.type === "symbol" && /highway[-_]name/.test(l.id)) {
+        map.setPaintProperty(l.id, "text-color", night ? "#b9c0cc" : "#5b6472");
+        map.setLayoutProperty(l.id, "text-size", ["interpolate", ["linear"], ["zoom"], 13, 10, 16, 13]);
+      }
+      if (l.type === "symbol" && /^(label_|place_)/.test(l.id)) {
+        map.setPaintProperty(l.id, "text-color", night ? "#e6e9ef" : "#2a3140");
+      }
+    });
+  }
+  function addOverlays() {
+    const m = currentMode(), night = m === "night";
+    // Sit above roads and buildings, below the basemap's own place labels.
+    const base = map.getStyle().layers;
+    let lastShape = -1;
+    base.forEach((l, i) => { if (l.type !== "symbol") lastShape = i; });
+    const firstSymbol = (base[lastShape + 1] || {}).id;
+    const level = ["get", m];
+
+    map.addSource("zones", { type: "geojson", data: zonesGeo() });
+    map.addLayer({ id: "zone-fill", type: "fill", source: "zones", paint: {
+      "fill-color": ["match", level, "sharp", AMBER, "skip", RED, "#000000"],
+      "fill-opacity": ["match", level, "sharp", night ? 0.26 : 0.2, "skip", night ? 0.36 : 0.28, 0],
+    } }, firstSymbol);
+    map.addLayer({ id: "zone-line-sharp", type: "line", source: "zones", filter: ["==", level, "sharp"], paint: { "line-color": AMBER, "line-width": 1.5, "line-opacity": 0.85 } }, firstSymbol);
+    map.addLayer({ id: "zone-line-skip", type: "line", source: "zones", filter: ["==", level, "skip"], paint: { "line-color": RED, "line-width": 2, "line-dasharray": [2, 2] } }, firstSymbol);
+
+    // After dark: the recommended walk back to the hotel.
+    if (night) {
+      const walk = [g(8, 34), g(10, 34), [HOTEL.lat, HOTEL.lng]].map(([y, x]) => [x, y]);
+      const spur = [g(10.62, 33.9), g(10, 34)].map(([y, x]) => [x, y]);
+      map.addSource("walk", { type: "geojson", data: { type: "FeatureCollection", features: [lineGeo(walk), lineGeo(spur)] } });
+      map.addLayer({ id: "walk-case", type: "line", source: "walk", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#0b1220", "line-width": 9, "line-opacity": 0.6 } });
+      map.addLayer({ id: "walk-line", type: "line", source: "walk", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": GOLD, "line-width": 5 } });
+      map.addLayer({ id: "walk-label", type: "symbol", source: "walk", minzoom: 14, layout: { "symbol-placement": "line-center", "text-field": "Walk home this way", "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, -1.1], "text-allow-overlap": true }, paint: { "text-color": GOLD, "text-halo-color": "#0b1220", "text-halo-width": 2 } });
+    }
+
+    map.addSource("zone-names", { type: "geojson", data: { type: "FeatureCollection", features: ZONES.filter((z) => ZONE_LABEL[z.id]).map((z) => ({
+      type: "Feature", properties: { name: ZONE_LABEL[z.id].toUpperCase() },
+      geometry: { type: "Point", coordinates: [z.poly.reduce((a, p) => a + p[1], 0) / z.poly.length, z.poly.reduce((a, p) => a + p[0], 0) / z.poly.length] },
+    })) } });
+    map.addLayer({ id: "zone-names", type: "symbol", source: "zone-names", minzoom: 11.5, maxzoom: 15.2, layout: {
+      "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11.5, 9, 15, 11.5],
+      "text-letter-spacing": 0.14, "text-max-width": 7, "text-padding": 6,
+    }, paint: { "text-color": night ? "#8e97a6" : "#7b8494", "text-halo-color": night ? "#0b0d11" : "#f5f5f2", "text-halo-width": 1.6 } });
+
+    map.addSource("route", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: "route-case", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": night ? "#0b1220" : "#ffffff", "line-width": 7, "line-opacity": 0.9 } });
+    map.addLayer({ id: "route-line", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": night ? "#ffffff" : "#1f3a8a", "line-width": 3, "line-dasharray": [0.2, 2] } });
+
+    map.addSource("places", { type: "geojson", data: placesGeo([]) });
+    map.addLayer({ id: "places-dot", type: "circle", source: "places", paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 3, 13.5, 5, 16, 7],
+      "circle-color": night ? "#ffffff" : INK,
+      "circle-stroke-color": night ? "#0b1220" : "#ffffff",
+      "circle-stroke-width": 2,
+      "circle-opacity": ["case", ["==", ["get", "active"], 1], 0, 1],
+      "circle-stroke-opacity": ["case", ["==", ["get", "active"], 1], 0, 1],
+    } });
+    map.addLayer({ id: "places-label", type: "symbol", source: "places", minzoom: 12.5, layout: {
+      "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 10.5, 16, 12.5],
+      "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 0.85, "text-justify": "auto",
+      "text-max-width": 8, "text-line-height": 1.1, "symbol-sort-key": ["get", "rank"], "text-padding": 4,
+    }, paint: { "text-color": night ? "#ffffff" : "#1b2230", "text-halo-color": night ? "#0b1220" : "#ffffff", "text-halo-width": 1.8, "text-opacity": ["case", ["==", ["get", "active"], 1], 0, 1] } });
+
+    mapReady = true;
+    renderMapPlaces();
+  }
+  function loadBase() {
+    const m = currentMode();
+    if (styleMode === m) return;
+    styleMode = m; mapReady = false;
+    map.setStyle(BASE[m], { diff: false });
   }
   function paintZones() {
     const m = currentMode();
-    zoneLayers.forEach(({ z, layer }) => layer.setStyle(zoneStyle(z)));
     $("#modeDay").setAttribute("aria-pressed", m === "day");
     $("#modeNight").setAttribute("aria-pressed", m === "night");
     $("#view-map").classList.toggle("night", m === "night");
     if (!map) return;
-    if (!map.hasLayer(tiles.light)) tiles.light.addTo(map).bringToBack();
-    if (homeWalk) { if (m === "night") homeWalk.addTo(map); else map.removeLayer(homeWalk); }
+    loadBase();
     renderMapCards();
   }
   function showZone(z) {
@@ -442,13 +543,6 @@
   }
   function hideZone() { $("#zoneCard").hidden = true; $("#view-map").classList.remove("has-zone"); }
 
-  /* ---- places on the map: pins + the swipeable cards underneath ---- */
-  function mapPlaces() {
-    if (mapFilter === "plan") return planStops();
-    const from = origin();
-    return PLACES.filter((p) => mapFilter === "all" || (mapFilter === "festive" ? p.festive : p.cat === mapFilter))
-      .map((p) => ({ p, km: distKm(from, p) })).sort((a, b) => a.km - b.km).map((x) => x.p);
-  }
   function renderMapChips() {
     const chips = [["all", "All places"], ["plan", `${planDay().short === "Swap" ? "Spare day" : planDay().short} route`], ["festive", "Festive"], ["sights", "Sights"], ["views", "Views"], ["museums", "Museums"], ["walks", "Walks"], ["food", "Food"], ["shops", "Shops"], ["shows", "Shows"]];
     $("#mapChips").innerHTML = chips.map(([k, l]) => `<button class="chip${k === mapFilter ? " on" : ""}" data-mapfilter="${k}">${esc(l)}</button>`).join("");
@@ -468,75 +562,103 @@
     const on = $(".mcard.on", el);
     if (on) { quietUntil = Date.now() + 400; el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2; }
   }
+  function domMarker(html, lngLat, onClick, cls) {
+    const el = document.createElement("div");
+    el.className = "pin-wrap" + (cls ? " " + cls : "");
+    el.innerHTML = html;
+    if (onClick) el.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
+    return new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map);
+  }
   function renderMapPlaces(fit) {
-    if (!map) return;
-    placeLayer.clearLayers(); routeLayer.clearLayers(); markers = {};
-    const list = mapPlaces();
+    renderMapChips();
+    if (!map || !mapReady) { renderMapCards(); return; }
+    const list = mapPlaces(), plan = mapFilter === "plan";
     if (!list.some((p) => p.id === activeId)) activeId = null;
-    list.forEach((p, i) => {
-      const inner = mapFilter === "plan" ? `<b>${i + 1}</b>` : CATS[p.cat].glyph;
-      const icon = L.divIcon({ className: "pin-wrap", html: `<span class="pin${mapFilter === "plan" ? " pin-num" : ""}${p.id === activeId ? " is-active" : ""}">${inner}</span>`, iconSize: [36, 36], iconAnchor: [18, 18] });
-      markers[p.id] = L.marker([p.lat, p.lng], { icon, title: p.name, alt: p.name, zIndexOffset: p.id === activeId ? 900 : 0 }).addTo(placeLayer)
-        .on("click", () => { hideZone(); setActive(p.id, { scroll: true }); });
-    });
-    if (mapFilter === "plan" && list.length > 1) {
-      const line = [[HOTEL.lat, HOTEL.lng], ...list.map((p) => [p.lat, p.lng])];
-      L.polyline(line, { color: "#fff", weight: 6, opacity: 0.9, interactive: false }).addTo(routeLayer);
-      L.polyline(line, { color: "#0e1116", weight: 2.5, dashArray: "2 7", lineCap: "round", interactive: false }).addTo(routeLayer);
+    stopMarkers.forEach((mk) => mk.remove()); stopMarkers = [];
+    map.getSource("places").setData(placesGeo(list));
+    map.setPaintProperty("places-dot", "circle-radius", plan ? 0 : ["interpolate", ["linear"], ["zoom"], 11, 3, 13.5, 5, 16, 7]);
+    map.setPaintProperty("places-dot", "circle-stroke-width", plan ? 0 : 2);
+    map.setLayoutProperty("places-label", "text-radial-offset", plan ? 1.6 : 0.85);
+    map.getSource("route").setData({ type: "FeatureCollection", features: plan && list.length > 1 ? [lineGeo([ll(HOTEL), ...list.map(ll)])] : [] });
+    if (plan) list.forEach((p, i) => stopMarkers.push(domMarker(`<span class="pin pin-num"><b>${i + 1}</b></span>`, ll(p), () => { hideZone(); setActive(p.id, { scroll: true }); })));
+    placeActiveMarker();
+    renderMapCards();
+    if (fit && mapFilter === "all") map.easeTo({ center: HOME_VIEW.center, zoom: HOME_VIEW.zoom, bearing: BEARING, duration: 600 });
+    else if (fit && list.length) {
+      const b = new maplibregl.LngLatBounds(ll(HOTEL), ll(HOTEL));
+      list.forEach((p) => b.extend(ll(p)));
+      map.fitBounds(b, { padding: mapPad(), bearing: BEARING, maxZoom: 15, duration: 600 });
     }
-    renderMapChips(); renderMapCards();
-    if (fit && list.length) map.fitBounds(L.latLngBounds([[HOTEL.lat, HOTEL.lng], ...list.map((p) => [p.lat, p.lng])]), { paddingTopLeft: [40, 130], paddingBottomRight: [40, 170], maxZoom: 15 });
+  }
+  function placeActiveMarker() {
+    if (activeMarker) { activeMarker.remove(); activeMarker = null; }
+    const p = placeById[activeId];
+    if (!p || !map) return;
+    const idx = mapFilter === "plan" ? planStops().findIndex((x) => x.id === p.id) : -1;
+    activeMarker = domMarker(`<span class="pin is-active">${idx >= 0 ? `<b>${idx + 1}</b>` : CATS[p.cat].glyph}</span>`, ll(p), () => openPlace(p.id), "pin-top");
   }
   function setActive(id, opts = {}) {
-    const prev = markers[activeId], next = markers[id];
-    if (prev && prev.getElement()) { $(".pin", prev.getElement()).classList.remove("is-active"); prev.setZIndexOffset(0); }
     activeId = id;
-    if (next && next.getElement()) { $(".pin", next.getElement()).classList.add("is-active"); next.setZIndexOffset(900); }
+    if (mapReady) map.getSource("places").setData(placesGeo(mapPlaces()));
+    placeActiveMarker();
     const el = $("#mapCards");
     el.querySelectorAll(".mcard").forEach((c) => c.classList.toggle("on", c.dataset.mcard === id));
     const card = $(`.mcard[data-mcard="${id}"]`, el);
     if (opts.scroll && card) { quietUntil = Date.now() + 700; el.scrollTo({ left: card.offsetLeft - (el.clientWidth - card.offsetWidth) / 2, behavior: "smooth" }); }
     const p = placeById[id];
-    if (opts.pan && p) map.setView([p.lat, p.lng], Math.max(map.getZoom(), opts.zoom || 15), { animate: true });
+    if (opts.pan && p) map.easeTo({ center: ll(p), zoom: Math.max(map.getZoom(), opts.zoom || 14.5), offset: [0, -10], duration: 450 });
   }
 
   function initMap() {
-    if (map || typeof L === "undefined") return;
-    map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 11, maxZoom: 18, zoomSnap: 0.5, maxBounds: [[40.55, -74.2], [40.92, -73.75]], maxBoundsViscosity: 0.8 }).setView([40.7545, -73.9915], 14);
-    map.attributionControl.setPrefix(false);
-    // OpenStreetMap's own tiles: no account or key needed. The same tiles are restyled dark after sunset.
-    tiles.light = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' });
-    tiles.dark = null;
+    if (map) return;
+    if (typeof maplibregl === "undefined") { $("#map").innerHTML = `<p class="map-fail">The map couldn't load. Check your connection and reopen this tab.</p>`; return; }
+    try {
+      map = new maplibregl.Map({
+        container: "map", style: BASE[currentMode()], center: HOME_VIEW.center, zoom: HOME_VIEW.zoom, bearing: BEARING,
+        minZoom: 11, maxZoom: 18,
+        attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false,
+      });
+    } catch (e) { map = null; $("#map").innerHTML = `<p class="map-fail">This browser can't draw the map. Everything else in the guide still works.</p>`; return; }
+    styleMode = currentMode();
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
+    map.on("moveend", () => { if (Math.abs(map.getBearing() - BEARING) > 0.5) map.setBearing(BEARING); });
+    // If the vector basemap can't be reached, fall back to plain OpenStreetMap tiles, toned down to grey.
+    setTimeout(() => {
+      if (!map || map.getSource("zones")) return;
+      map.setStyle({
+        version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+        sources: { osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 19 } },
+        layers: [{ id: "osm", type: "raster", source: "osm", paint: { "raster-saturation": -0.9, "raster-contrast": -0.15, "raster-brightness-max": currentMode() === "night" ? 0.45 : 1 } }],
+      }, { diff: false });
+    }, 9000);
+    // Re-attach our layers whenever a basemap finishes loading (first load, and each day/night switch).
+    const ensureOverlays = () => {
+      if (!map.isStyleLoaded() || map.getSource("zones")) return;
+      try { tuneBase(); addOverlays(); } catch (err) { console.error("overlay error: " + err.message); }
+    };
+    map.on("styledata", ensureOverlays);
+    map.on("idle", ensureOverlays);
 
-    ZONES.forEach((z) => {
-      const layer = L.polygon(soften(z.poly), zoneStyle(z)).addTo(map);
-      layer.on("click", (e) => { L.DomEvent.stopPropagation(e); showZone(z); });
-      zoneLayers.push({ z, layer });
-    });
-    map.on("click", hideZone);
-
-    // The recommended walk home after dark: along 34th Street, then one block up 10th Avenue.
-    const walk = [g(8, 34), g(10, 34), [HOTEL.lat, HOTEL.lng]], spur = [g(10.62, 33.9), g(10, 34)];
-    homeWalk = L.layerGroup([
-      L.polyline(walk, { color: "#0b1220", weight: 8, opacity: 0.55, lineCap: "round", lineJoin: "round", interactive: false }),
-      L.polyline(spur, { color: "#0b1220", weight: 8, opacity: 0.55, lineCap: "round", interactive: false }),
-      L.polyline(walk, { color: "#e8b64c", weight: 4.5, lineCap: "round", lineJoin: "round" }).bindTooltip("Best walk home after dark: 34th Street", { sticky: true }),
-      L.polyline(spur, { color: "#e8b64c", weight: 4.5, lineCap: "round" }).bindTooltip("From the 7 train: 5 minutes, well lit", { sticky: true }),
-    ]);
-
-    routeLayer = L.layerGroup().addTo(map);
+    hotelMarker = domMarker(`<span class="pin pin-home">${ic("home")}</span><span class="pin-label">Hotel</span>`, ll(HOTEL), openDriver, "pin-top");
     STATIONS.forEach((s) => {
-      L.marker([s.lat, s.lng], { icon: L.divIcon({ className: "pin-wrap stn-wrap", html: `<span class="stn">${bullets(s.lines)}</span>`, iconSize: [0, 0] }), title: s.name + " station", zIndexOffset: -200 })
-        .addTo(map).bindTooltip(`${s.name}${s.home ? " — your station" : ""}`, { direction: "top", offset: [0, -12] });
+      stationMarkers.push(domMarker(`<span class="stn" title="${esc(s.name)}">${bullets(s.lines)}</span>`, [s.lng, s.lat], () => toast(`${s.name}${s.home ? " — your station" : ""}`), "stn-wrap" + (s.home ? " stn-home" : "")));
     });
-    placeLayer = L.layerGroup().addTo(map);
-    L.marker([HOTEL.lat, HOTEL.lng], {
-      icon: L.divIcon({ className: "pin-wrap", html: `<span class="pin pin-home">${ic("home")}</span><span class="pin-label">Hotel</span>`, iconSize: [44, 44], iconAnchor: [22, 22] }),
-      title: "The Set — your hotel", zIndexOffset: 1000,
-    }).addTo(map).on("click", openDriver);
+    const onZoom = () => { const z = map.getZoom(), c = map.getContainer().classList; c.toggle("z-far", z < 12.4); c.toggle("z-mid", z < 13.6); };
+    map.on("zoom", onZoom); onZoom();
 
-    const onZoom = () => { const z = map.getZoom(); const c = map.getContainer().classList; c.toggle("z-far", z < 13); c.toggle("z-mid", z < 14.5); };
-    map.on("zoomend", onZoom); onZoom();
+    map.on("click", (e) => {
+      if (!mapReady) return;
+      const r = 18, hits = map.queryRenderedFeatures([[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]], { layers: ["places-dot", "places-label"] });
+      if (hits.length) {
+        let best = hits[0], gap = Infinity;
+        hits.forEach((f) => { const pt = map.project(f.geometry.coordinates), d = Math.hypot(pt.x - e.point.x, pt.y - e.point.y); if (d < gap) { gap = d; best = f; } });
+        hideZone(); setActive(best.properties.id, { scroll: true });
+        return;
+      }
+      const z = zoneAt(e.lngLat.lat, e.lngLat.lng);
+      if (z) showZone(z); else hideZone();
+    });
 
     const cards = $("#mapCards");
     let timer = null;
@@ -551,20 +673,20 @@
       }, 140);
     }, { passive: true });
 
-    renderMapPlaces();
     paintZones();
+    renderMapChips(); renderMapCards();
     if (!store.get("mapIntro", false)) $("#mapIntro").hidden = false;
   }
   function showMe(pan) {
     locate((pos) => {
       if (!map) return;
-      if (!meMarker) meMarker = L.marker([pos.lat, pos.lng], { icon: L.divIcon({ className: "pin-wrap", html: `<span class="me-dot"></span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 2000, title: "You are here" }).addTo(map);
-      else meMarker.setLatLng([pos.lat, pos.lng]);
+      if (!meMarker) meMarker = domMarker(`<span class="me-dot"></span>`, ll(pos), null, "pin-top");
+      else meMarker.setLngLat(ll(pos));
       if (pan) {
         if (meInNYC()) {
-          map.setView([pos.lat, pos.lng], 16, { animate: false });
           const z = zoneAt(pos.lat, pos.lng);
-          if (z) { showZone(z); map.panBy([0, $("#zoneCard").offsetHeight / 2], { animate: false }); }
+          if (z) showZone(z);
+          map.easeTo({ center: ll(pos), zoom: 15.5, offset: [0, z ? -$("#zoneCard").offsetHeight / 2 + 40 : 0], duration: 500 });
           renderMapPlaces();
         } else toast("You're not in New York yet — showing the hotel instead.");
       }
@@ -658,7 +780,7 @@
     document.querySelectorAll(".tabs button").forEach((b) => { if (b.dataset.view === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.body.classList.toggle("on-map", name === "map");
     RENDER[name]();
-    if (name === "map") { const first = !map; initMap(); if (map) { map.invalidateSize(); if (!first) { renderMapChips(); if (mapFilter === "plan") renderMapPlaces(); paintZones(); } } } else window.scrollTo(0, 0);
+    if (name === "map") { const first = !map; initMap(); if (map) { map.resize(); if (!first) { paintZones(); renderMapPlaces(); } } } else window.scrollTo(0, 0);
   }
   function focusOnMap(placeId, zone) {
     closeSheet();
@@ -666,11 +788,13 @@
     if (!map) return;
     if (zone) {
       showZone(zone);
-      map.fitBounds(L.polygon(zone.poly).getBounds(), { paddingTopLeft: [24, 130], paddingBottomRight: [24, $("#zoneCard").offsetHeight + 36] });
+      const b = new maplibregl.LngLatBounds();
+      zone.poly.forEach(([y, x]) => b.extend([x, y]));
+      map.fitBounds(b, { padding: mapPad($("#zoneCard").offsetHeight + 40), bearing: BEARING, maxZoom: 15.5, duration: 600 });
     } else if (placeId) {
       hideZone();
-      if (!markers[placeId]) { mapFilter = "all"; renderMapPlaces(); }
-      setActive(placeId, { pan: true, scroll: true, zoom: 16 });
+      if (!mapPlaces().some((p) => p.id === placeId)) { mapFilter = "all"; renderMapPlaces(); }
+      setActive(placeId, { pan: true, scroll: true, zoom: 15.5 });
     }
   }
   function toggleSave(id) {
@@ -727,7 +851,7 @@
   $("#modeDay").addEventListener("click", () => { mapMode = "day"; paintZones(); hideZone(); });
   $("#modeNight").addEventListener("click", () => { mapMode = "night"; paintZones(); hideZone(); });
   $("#locateBtn").addEventListener("click", () => showMe(true));
-  $("#homeBtn").addEventListener("click", () => { if (map) { hideZone(); map.setView([HOTEL.lat, HOTEL.lng], 15.5); } });
+  $("#homeBtn").addEventListener("click", () => { if (map) { hideZone(); map.easeTo({ center: ll(HOTEL), zoom: 15, duration: 500 }); } });
 
   /* ---------- go ---------- */
   applyTitle();

@@ -6,8 +6,9 @@ The Set in Hudson Yards. Built to be opened on a phone.
 - **Today** — countdown before the trip, then the day's plan, daylight remaining,
   live weather, and four big buttons: take me home, show the address to a driver,
   send my location, call.
-- **Map** — every place in the guide plus colour-coded areas (Relaxed / Stay sharp /
-  Skip) that switch between daytime and after-dark guidance on their own.
+- **Map** — turned so uptown is up. Only areas that need care are shaded (Stay sharp /
+  Skip), switching between daytime and after-dark guidance on their own. Labelled
+  places, her subway stations, each day's route, and the walk home after dark.
 - **Explore** — 39 places, nearest first, filterable (festive, free, indoors…), each
   with a tip, cost, and exactly which train to take from the hotel.
 - **Safety** — how to get back to the hotel at night, six habits, area-by-area
@@ -44,4 +45,4 @@ stay on that phone.
 - The safety areas are broad-strokes local knowledge about how places feel on
   foot, not crime data.
 
-Map: Leaflet (vendored), tiles © OpenStreetMap contributors. Weather: Open-Meteo.
+Map: MapLibre GL (vendored) with OpenFreeMap vector tiles — no API key. Map data © OpenMapTiles, © OpenStreetMap contributors. Weather: Open-Meteo.
