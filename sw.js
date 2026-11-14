@@ -1,9 +1,9 @@
 /* Offline support: the guide itself is cached so it opens with no signal;
    map tiles are kept as they're viewed. Network-first, so updates show up at once. */
-const SHELL = "nyc-shell-v2";
-const TILES = "nyc-tiles-v1";
+const SHELL = "nyc-shell-v3";
+const TILES = "nyc-tiles-v2";
 const FILES = ["./", "index.html", "css/style.css", "js/data.js", "js/app.js", "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "icons/icon.svg", "icons/icon-180.png", "manifest.webmanifest"];
-const TILE_HOSTS = /basemaps\.cartocdn\.com|tile\.openstreetmap\.org/;
+const TILE_HOSTS = /tile\.openstreetmap\.org/;
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

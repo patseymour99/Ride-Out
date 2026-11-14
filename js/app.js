@@ -425,9 +425,7 @@
     $("#modeNight").setAttribute("aria-pressed", m === "night");
     $("#view-map").classList.toggle("night", m === "night");
     if (!map) return;
-    const want = m === "night" && !tiles.darkFailed ? tiles.dark : tiles.light;
-    [tiles.light, tiles.dark].forEach((t) => { if (t && t !== want && map.hasLayer(t)) map.removeLayer(t); });
-    if (want && !map.hasLayer(want)) want.addTo(map).bringToBack();
+    if (!map.hasLayer(tiles.light)) tiles.light.addTo(map).bringToBack();
     if (homeWalk) { if (m === "night") homeWalk.addTo(map); else map.removeLayer(homeWalk); }
     renderMapCards();
   }
@@ -506,18 +504,9 @@
     if (map || typeof L === "undefined") return;
     map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 11, maxZoom: 18, zoomSnap: 0.5, maxBounds: [[40.55, -74.2], [40.92, -73.75]], maxBoundsViscosity: 0.8 }).setView([40.7545, -73.9915], 14);
     map.attributionControl.setPrefix(false);
-    const attribution = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>';
-    tiles.light = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19, attribution });
-    tiles.dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19, attribution });
-    tiles.light.on("tileerror", () => {
-      if (tiles.fellBack || !navigator.onLine) return;
-      tiles.fellBack = true;
-      const had = map.hasLayer(tiles.light);
-      map.removeLayer(tiles.light);
-      tiles.light = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' });
-      if (had) tiles.light.addTo(map).bringToBack();
-    });
-    tiles.dark.on("tileerror", () => { if (tiles.darkFailed || !navigator.onLine) return; tiles.darkFailed = true; $("#view-map").classList.add("dim-tiles"); paintZones(); });
+    // OpenStreetMap's own tiles: no account or key needed. The same tiles are restyled dark after sunset.
+    tiles.light = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' });
+    tiles.dark = null;
 
     ZONES.forEach((z) => {
       const layer = L.polygon(soften(z.poly), zoneStyle(z)).addTo(map);

@@ -276,7 +276,7 @@ h3 { font-size: 18px; line-height: 1.25; font-weight: 650; letter-spacing: -.015
 #view-map { position: fixed; inset: var(--bar-h) 0 var(--tabs-h) 0; padding: 0; z-index: 400; overflow: hidden; }
 #map { position: absolute; inset: 0; background: #e9e7e1; z-index: 1; }
 #view-map.night #map { background: #1b1d22; }
-#view-map.night.dim-tiles #map .leaflet-tile-pane { filter: brightness(.6) saturate(.65) contrast(1.05); }
+#view-map.night #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.55); }
 .map-top { position: absolute; z-index: 450; top: 0; left: 0; right: 0; padding-top: 12px; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 70%, transparent), transparent); }
 .map-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px; max-width: 640px; margin: 0 auto; }
 .map-bar > * { pointer-events: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 2px 12px rgba(16, 24, 40, .16); }

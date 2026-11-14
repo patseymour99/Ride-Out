@@ -44,4 +44,4 @@ stay on that phone.
 - The safety areas are broad-strokes local knowledge about how places feel on
   foot, not crime data.
 
-Map: Leaflet (vendored), tiles © OpenStreetMap contributors © CARTO. Weather: Open-Meteo.
+Map: Leaflet (vendored), tiles © OpenStreetMap contributors. Weather: Open-Meteo.
