@@ -207,6 +207,7 @@
         <p>${esc(d.intro)}</p>
         <ol class="steps">${steps}</ol>
         ${d.home ? `<div class="home-note"><b>Getting home</b><p>${esc(d.home)}</p></div>` : ""}
+        ${d.steps.some((x) => x.place) ? `<div class="btns"><button class="btn" data-act="planmap">${ic("map")} See this day on the map</button></div>` : ""}
       </div>
     </section>`;
   }
@@ -387,19 +388,48 @@
      MAP
      ========================================================= */
   let map = null, zoneLayers = [], markers = {}, meMarker = null;
+  let placeLayer = null, routeLayer = null, homeWalk = null, tiles = {};
   let mapMode = null; // "day" | "night"; null = follow the clock
+  let mapFilter = "all", activeId = null, quietUntil = 0;
   const currentMode = () => mapMode || (isDarkNow() ? "night" : "day");
+  const planDay = () => DAYS[dayIndex === null ? defaultDayIndex() : dayIndex];
+  const planStops = () => [...new Set(planDay().steps.map((s) => s.place).filter(Boolean))].map((id) => placeById[id]);
+
+  /* Pull each area in slightly and round its corners, so neighbouring areas
+     read as separate, soft-edged districts rather than hard boxes. */
+  function soften(poly) {
+    const n = poly.length, K = 0.757; // longitude degrees are shorter than latitude degrees here
+    const cy = poly.reduce((s, p) => s + p[0], 0) / n, cx = poly.reduce((s, p) => s + p[1], 0) / n;
+    const pts = poly.map(([y, x]) => [cy + (y - cy) * 0.972, cx + (x - cx) * 0.972]);
+    const len = (a, b) => Math.hypot(a[0] - b[0], (a[1] - b[1]) * K);
+    const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i + n - 1) % n], p1 = pts[i], p2 = pts[(i + 1) % n];
+      const a = lerp(p1, p0, Math.min(0.45, 0.0009 / len(p1, p0)));
+      const b = lerp(p1, p2, Math.min(0.45, 0.0009 / len(p1, p2)));
+      for (let s = 0; s <= 6; s++) { const t = s / 6; out.push(lerp(lerp(a, p1, t), lerp(p1, b, t), t)); }
+    }
+    return out;
+  }
 
   function zoneStyle(z) {
-    const level = z[currentMode()];
-    return { color: LEVEL[level].color, weight: level === "skip" ? 2 : 1, dashArray: level === "skip" ? "6 5" : null, opacity: 0.9, fillColor: LEVEL[level].color, fillOpacity: level === "easy" ? 0.14 : level === "sharp" ? 0.28 : 0.36 };
+    const level = z[currentMode()], night = currentMode() === "night";
+    const fill = { easy: night ? 0.2 : 0.13, sharp: night ? 0.36 : 0.26, skip: night ? 0.42 : 0.32 }[level];
+    return { color: LEVEL[level].color, weight: 1.5, opacity: 0.75, dashArray: level === "skip" ? "5 6" : null, lineJoin: "round", fillColor: LEVEL[level].color, fillOpacity: fill };
   }
   function paintZones() {
-    zoneLayers.forEach(({ z, layer }) => layer.setStyle(zoneStyle(z)));
     const m = currentMode();
+    zoneLayers.forEach(({ z, layer }) => layer.setStyle(zoneStyle(z)));
     $("#modeDay").setAttribute("aria-pressed", m === "day");
     $("#modeNight").setAttribute("aria-pressed", m === "night");
     $("#view-map").classList.toggle("night", m === "night");
+    if (!map) return;
+    const want = m === "night" && !tiles.darkFailed ? tiles.dark : tiles.light;
+    [tiles.light, tiles.dark].forEach((t) => { if (t && t !== want && map.hasLayer(t)) map.removeLayer(t); });
+    if (want && !map.hasLayer(want)) want.addTo(map).bringToBack();
+    if (homeWalk) { if (m === "night") homeWalk.addTo(map); else map.removeLayer(homeWalk); }
+    renderMapCards();
   }
   function showZone(z) {
     const m = currentMode();
@@ -410,41 +440,131 @@
       <p>${esc(z.note)}</p>
       <p class="muted small">${m === "night" ? "By day: " + LEVEL[z.day].label : "After dark: " + LEVEL[z.night].label}</p>`;
     c.hidden = false;
+    $("#view-map").classList.add("has-zone");
+  }
+  function hideZone() { $("#zoneCard").hidden = true; $("#view-map").classList.remove("has-zone"); }
+
+  /* ---- places on the map: pins + the swipeable cards underneath ---- */
+  function mapPlaces() {
+    if (mapFilter === "plan") return planStops();
+    const from = origin();
+    return PLACES.filter((p) => mapFilter === "all" || (mapFilter === "festive" ? p.festive : p.cat === mapFilter))
+      .map((p) => ({ p, km: distKm(from, p) })).sort((a, b) => a.km - b.km).map((x) => x.p);
+  }
+  function renderMapChips() {
+    const chips = [["all", "All places"], ["plan", `${planDay().short === "Swap" ? "Spare day" : planDay().short} route`], ["festive", "Festive"], ["sights", "Sights"], ["views", "Views"], ["museums", "Museums"], ["walks", "Walks"], ["food", "Food"], ["shops", "Shops"], ["shows", "Shows"]];
+    $("#mapChips").innerHTML = chips.map(([k, l]) => `<button class="chip${k === mapFilter ? " on" : ""}" data-mapfilter="${k}">${esc(l)}</button>`).join("");
+  }
+  function renderMapCards() {
+    const el = $("#mapCards");
+    if (!el || !map) return;
+    const m = currentMode(), from = origin(), list = mapPlaces();
+    el.innerHTML = list.map((p, i) => {
+      const level = p.zone ? p.zone[m] : "easy";
+      return `<button class="mcard${p.id === activeId ? " on" : ""}" data-mcard="${p.id}">
+        <span class="tile t-${p.cat}">${mapFilter === "plan" ? `<b>${i + 1}</b>` : CATS[p.cat].glyph}</span>
+        <span class="mcard-text"><b>${esc(p.name)}</b><small>${esc(p.area)} · ${fmtDist(distKm(from, p))}</small><span class="mcard-foot">${lv(level, m === "night" && level === "skip" ? "Not after dark" : null)}<span>${esc(p.cost.split(" · ")[0])}</span></span></span>
+        <span class="chev" aria-hidden="true">${ic("chev")}</span>
+      </button>`;
+    }).join("");
+    const on = $(".mcard.on", el);
+    if (on) { quietUntil = Date.now() + 400; el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2; }
+  }
+  function renderMapPlaces(fit) {
+    if (!map) return;
+    placeLayer.clearLayers(); routeLayer.clearLayers(); markers = {};
+    const list = mapPlaces();
+    if (!list.some((p) => p.id === activeId)) activeId = null;
+    list.forEach((p, i) => {
+      const inner = mapFilter === "plan" ? `<b>${i + 1}</b>` : CATS[p.cat].glyph;
+      const icon = L.divIcon({ className: "pin-wrap", html: `<span class="pin${mapFilter === "plan" ? " pin-num" : ""}${p.id === activeId ? " is-active" : ""}">${inner}</span>`, iconSize: [36, 36], iconAnchor: [18, 18] });
+      markers[p.id] = L.marker([p.lat, p.lng], { icon, title: p.name, alt: p.name, zIndexOffset: p.id === activeId ? 900 : 0 }).addTo(placeLayer)
+        .on("click", () => { hideZone(); setActive(p.id, { scroll: true }); });
+    });
+    if (mapFilter === "plan" && list.length > 1) {
+      const line = [[HOTEL.lat, HOTEL.lng], ...list.map((p) => [p.lat, p.lng])];
+      L.polyline(line, { color: "#fff", weight: 6, opacity: 0.9, interactive: false }).addTo(routeLayer);
+      L.polyline(line, { color: "#0e1116", weight: 2.5, dashArray: "2 7", lineCap: "round", interactive: false }).addTo(routeLayer);
+    }
+    renderMapChips(); renderMapCards();
+    if (fit && list.length) map.fitBounds(L.latLngBounds([[HOTEL.lat, HOTEL.lng], ...list.map((p) => [p.lat, p.lng])]), { paddingTopLeft: [40, 130], paddingBottomRight: [40, 170], maxZoom: 15 });
+  }
+  function setActive(id, opts = {}) {
+    const prev = markers[activeId], next = markers[id];
+    if (prev && prev.getElement()) { $(".pin", prev.getElement()).classList.remove("is-active"); prev.setZIndexOffset(0); }
+    activeId = id;
+    if (next && next.getElement()) { $(".pin", next.getElement()).classList.add("is-active"); next.setZIndexOffset(900); }
+    const el = $("#mapCards");
+    el.querySelectorAll(".mcard").forEach((c) => c.classList.toggle("on", c.dataset.mcard === id));
+    const card = $(`.mcard[data-mcard="${id}"]`, el);
+    if (opts.scroll && card) { quietUntil = Date.now() + 700; el.scrollTo({ left: card.offsetLeft - (el.clientWidth - card.offsetWidth) / 2, behavior: "smooth" }); }
+    const p = placeById[id];
+    if (opts.pan && p) map.setView([p.lat, p.lng], Math.max(map.getZoom(), opts.zoom || 15), { animate: true });
   }
 
   function initMap() {
     if (map || typeof L === "undefined") return;
-    map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 11, maxZoom: 18 }).setView([HOTEL.lat, HOTEL.lng], 14);
+    map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 11, maxZoom: 18, zoomSnap: 0.5, maxBounds: [[40.55, -74.2], [40.92, -73.75]], maxBoundsViscosity: 0.8 }).setView([40.7545, -73.9915], 14);
     map.attributionControl.setPrefix(false);
-    const carto = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd", maxZoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-    }).addTo(map);
-    let fellBack = false;
-    carto.on("tileerror", () => {
-      if (fellBack || !navigator.onLine) return;
-      fellBack = true;
-      map.removeLayer(carto);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map).bringToBack();
+    const attribution = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>';
+    tiles.light = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19, attribution });
+    tiles.dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19, attribution });
+    tiles.light.on("tileerror", () => {
+      if (tiles.fellBack || !navigator.onLine) return;
+      tiles.fellBack = true;
+      const had = map.hasLayer(tiles.light);
+      map.removeLayer(tiles.light);
+      tiles.light = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' });
+      if (had) tiles.light.addTo(map).bringToBack();
     });
+    tiles.dark.on("tileerror", () => { if (tiles.darkFailed || !navigator.onLine) return; tiles.darkFailed = true; $("#view-map").classList.add("dim-tiles"); paintZones(); });
 
     ZONES.forEach((z) => {
-      const layer = L.polygon(z.poly, zoneStyle(z)).addTo(map);
+      const layer = L.polygon(soften(z.poly), zoneStyle(z)).addTo(map);
       layer.on("click", (e) => { L.DomEvent.stopPropagation(e); showZone(z); });
       zoneLayers.push({ z, layer });
     });
-    map.on("click", () => { $("#zoneCard").hidden = true; });
+    map.on("click", hideZone);
 
-    PLACES.forEach((p) => {
-      const icon = L.divIcon({ className: "pin-wrap", html: `<span class="pin">${CATS[p.cat].glyph}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] });
-      markers[p.id] = L.marker([p.lat, p.lng], { icon, title: p.name, alt: p.name }).addTo(map).on("click", () => openPlace(p.id));
+    // The recommended walk home after dark: along 34th Street, then one block up 10th Avenue.
+    const walk = [g(8, 34), g(10, 34), [HOTEL.lat, HOTEL.lng]], spur = [g(10.62, 33.9), g(10, 34)];
+    homeWalk = L.layerGroup([
+      L.polyline(walk, { color: "#0b1220", weight: 8, opacity: 0.55, lineCap: "round", lineJoin: "round", interactive: false }),
+      L.polyline(spur, { color: "#0b1220", weight: 8, opacity: 0.55, lineCap: "round", interactive: false }),
+      L.polyline(walk, { color: "#e8b64c", weight: 4.5, lineCap: "round", lineJoin: "round" }).bindTooltip("Best walk home after dark: 34th Street", { sticky: true }),
+      L.polyline(spur, { color: "#e8b64c", weight: 4.5, lineCap: "round" }).bindTooltip("From the 7 train: 5 minutes, well lit", { sticky: true }),
+    ]);
+
+    routeLayer = L.layerGroup().addTo(map);
+    STATIONS.forEach((s) => {
+      L.marker([s.lat, s.lng], { icon: L.divIcon({ className: "pin-wrap stn-wrap", html: `<span class="stn">${bullets(s.lines)}</span>`, iconSize: [0, 0] }), title: s.name + " station", zIndexOffset: -200 })
+        .addTo(map).bindTooltip(`${s.name}${s.home ? " — your station" : ""}`, { direction: "top", offset: [0, -12] });
     });
+    placeLayer = L.layerGroup().addTo(map);
     L.marker([HOTEL.lat, HOTEL.lng], {
-      icon: L.divIcon({ className: "pin-wrap", html: `<span class="pin pin-home">${ic("home")}</span>`, iconSize: [42, 42], iconAnchor: [21, 21] }),
+      icon: L.divIcon({ className: "pin-wrap", html: `<span class="pin pin-home">${ic("home")}</span><span class="pin-label">Hotel</span>`, iconSize: [44, 44], iconAnchor: [22, 22] }),
       title: "The Set — your hotel", zIndexOffset: 1000,
     }).addTo(map).on("click", openDriver);
 
+    const onZoom = () => { const z = map.getZoom(); const c = map.getContainer().classList; c.toggle("z-far", z < 13); c.toggle("z-mid", z < 14.5); };
+    map.on("zoomend", onZoom); onZoom();
+
+    const cards = $("#mapCards");
+    let timer = null;
+    cards.addEventListener("scroll", () => {
+      if (Date.now() < quietUntil) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const mid = cards.scrollLeft + cards.clientWidth / 2;
+        let best = null, gap = Infinity;
+        cards.querySelectorAll(".mcard").forEach((c) => { const d = Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid); if (d < gap) { gap = d; best = c; } });
+        if (best && best.dataset.mcard !== activeId) { hideZone(); setActive(best.dataset.mcard, { pan: true }); }
+      }, 140);
+    }, { passive: true });
+
+    renderMapPlaces();
     paintZones();
+    if (!store.get("mapIntro", false)) $("#mapIntro").hidden = false;
   }
   function showMe(pan) {
     locate((pos) => {
@@ -456,6 +576,7 @@
           map.setView([pos.lat, pos.lng], 16, { animate: false });
           const z = zoneAt(pos.lat, pos.lng);
           if (z) { showZone(z); map.panBy([0, $("#zoneCard").offsetHeight / 2], { animate: false }); }
+          renderMapPlaces();
         } else toast("You're not in New York yet — showing the hotel instead.");
       }
     });
@@ -548,13 +669,20 @@
     document.querySelectorAll(".tabs button").forEach((b) => { if (b.dataset.view === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.body.classList.toggle("on-map", name === "map");
     RENDER[name]();
-    if (name === "map") { initMap(); if (map) { map.invalidateSize(); paintZones(); } } else window.scrollTo(0, 0);
+    if (name === "map") { const first = !map; initMap(); if (map) { map.invalidateSize(); if (!first) { renderMapChips(); if (mapFilter === "plan") renderMapPlaces(); paintZones(); } } } else window.scrollTo(0, 0);
   }
-  function focusOnMap(latlng, zoom, zone) {
+  function focusOnMap(placeId, zone) {
     closeSheet();
     show("map");
     if (!map) return;
-    if (zone) { showZone(zone); map.fitBounds(L.polygon(zone.poly).getBounds(), { paddingTopLeft: [24, 24], paddingBottomRight: [24, $("#zoneCard").offsetHeight + 36] }); } else map.setView(latlng, zoom);
+    if (zone) {
+      showZone(zone);
+      map.fitBounds(L.polygon(zone.poly).getBounds(), { paddingTopLeft: [24, 130], paddingBottomRight: [24, $("#zoneCard").offsetHeight + 36] });
+    } else if (placeId) {
+      hideZone();
+      if (!markers[placeId]) { mapFilter = "all"; renderMapPlaces(); }
+      setActive(placeId, { pan: true, scroll: true, zoom: 16 });
+    }
   }
   function toggleSave(id) {
     if (saved.has(id)) saved.delete(id); else saved.add(id);
@@ -567,7 +695,7 @@
   }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-view],[data-place],[data-save],[data-day],[data-filter],[data-act],[data-zone],[data-showmap]");
+    const t = e.target.closest("[data-view],[data-mcard],[data-mapfilter],[data-place],[data-save],[data-day],[data-filter],[data-act],[data-zone],[data-showmap]");
     if (!t) return;
     const d = t.dataset;
     if (d.view) return show(d.view);
@@ -580,11 +708,15 @@
     if (d.place) return openPlace(d.place);
     if (d.day) { dayIndex = Number(d.day); renderToday(); return; }
     if (d.filter) { filter = d.filter; renderExplore(); return; }
-    if (d.showmap) { const p = placeById[d.showmap]; return focusOnMap([p.lat, p.lng], 16); }
-    if (d.zone) { const z = ZONES.find((x) => x.id === d.zone); mapMode = "night"; return focusOnMap(null, null, z); }
+    if (d.showmap) return focusOnMap(d.showmap);
+    if (d.mcard) return openPlace(d.mcard);
+    if (d.mapfilter) { mapFilter = d.mapfilter; hideZone(); renderMapPlaces(true); return; }
+    if (d.zone) { const z = ZONES.find((x) => x.id === d.zone); mapMode = "night"; show("map"); paintZones(); return focusOnMap(null, z); }
     switch (d.act) {
       case "close": return closeSheet();
-      case "zoneclose": $("#zoneCard").hidden = true; return;
+      case "zoneclose": return hideZone();
+      case "introclose": $("#mapIntro").hidden = true; store.set("mapIntro", true); return;
+      case "planmap": show("map"); mapFilter = "plan"; hideZone(); renderMapPlaces(true); return;
       case "settings": return openSettings();
       case "driver": return openDriver();
       case "share": return shareLocation();
@@ -603,10 +735,10 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
   $("#scrim").addEventListener("click", closeSheet);
   $("#settingsBtn").addEventListener("click", openSettings);
-  $("#modeDay").addEventListener("click", () => { mapMode = "day"; paintZones(); $("#zoneCard").hidden = true; });
-  $("#modeNight").addEventListener("click", () => { mapMode = "night"; paintZones(); $("#zoneCard").hidden = true; });
+  $("#modeDay").addEventListener("click", () => { mapMode = "day"; paintZones(); hideZone(); });
+  $("#modeNight").addEventListener("click", () => { mapMode = "night"; paintZones(); hideZone(); });
   $("#locateBtn").addEventListener("click", () => showMe(true));
-  $("#homeBtn").addEventListener("click", () => map && map.setView([HOTEL.lat, HOTEL.lng], 15));
+  $("#homeBtn").addEventListener("click", () => { if (map) { hideZone(); map.setView([HOTEL.lat, HOTEL.lng], 15.5); } });
 
   /* ---------- go ---------- */
   applyTitle();

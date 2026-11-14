@@ -691,3 +691,23 @@ const TRANSIT = {
     { h: "Dress for wind", p: "Typical early-December days are 3–8°C, but the wind between tall buildings and on anything high or near water makes it feel much colder. Hat, gloves, scarf, comfortable waterproof-ish shoes." },
   ],
 };
+
+/* ---------- Subway stations she will actually use ---------- */
+const STATIONS = [
+  { name: "34 St–Hudson Yards", lines: ["7"], lat: 40.7554, lng: -74.0008, home: true },
+  { name: "34 St–Penn Station", lines: ["A", "C", "E"], lat: 40.7523, lng: -73.9932, home: true },
+  { name: "Times Sq–42 St", lines: ["7"], lat: 40.7553, lng: -73.9870 },
+  { name: "5 Av–Bryant Park", lines: ["7"], lat: 40.7537, lng: -73.9819 },
+  { name: "Grand Central–42 St", lines: ["7", "4", "5"], lat: 40.7518, lng: -73.9768 },
+  { name: "5 Av/53 St", lines: ["E"], lat: 40.7602, lng: -73.9752 },
+  { name: "59 St–Columbus Circle", lines: ["A", "C"], lat: 40.7682, lng: -73.9819 },
+  { name: "81 St–Museum of Natural History", lines: ["C"], lat: 40.7814, lng: -73.9722 },
+  { name: "86 St", lines: ["4", "5"], lat: 40.7794, lng: -73.9556 },
+  { name: "14 St (8th Avenue)", lines: ["A", "C", "E"], lat: 40.7404, lng: -74.0021 },
+  { name: "14 St–Union Sq", lines: ["N", "Q", "R"], lat: 40.7347, lng: -73.9906 },
+  { name: "W 4 St–Washington Sq", lines: ["A", "C", "E"], lat: 40.7323, lng: -74.0005 },
+  { name: "Spring St", lines: ["C", "E"], lat: 40.7262, lng: -74.0037 },
+  { name: "Chambers St", lines: ["A", "C"], lat: 40.7141, lng: -74.0087 },
+  { name: "World Trade Center", lines: ["E"], lat: 40.7126, lng: -74.0099 },
+  { name: "High St–Brooklyn Bridge", lines: ["A", "C"], lat: 40.6993, lng: -73.9905 },
+];

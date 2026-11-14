@@ -1,6 +1,6 @@
 /* Offline support: the guide itself is cached so it opens with no signal;
    map tiles are kept as they're viewed. Network-first, so updates show up at once. */
-const SHELL = "nyc-shell-v1";
+const SHELL = "nyc-shell-v2";
 const TILES = "nyc-tiles-v1";
 const FILES = ["./", "index.html", "css/style.css", "js/data.js", "js/app.js", "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "icons/icon.svg", "icons/icon-180.png", "manifest.webmanifest"];
 const TILE_HOSTS = /basemaps\.cartocdn\.com|tile\.openstreetmap\.org/;

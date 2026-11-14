@@ -33,16 +33,19 @@
   <section class="view" id="view-today" aria-labelledby="tab-today"></section>
 
   <section class="view" id="view-map" aria-labelledby="tab-map" hidden>
-    <div class="map-bar">
-      <div class="seg" role="group" aria-label="Time of day">
-        <button id="modeDay" aria-pressed="true">Daytime</button>
-        <button id="modeNight" aria-pressed="false">After dark</button>
+    <div class="map-top">
+      <div class="map-bar">
+        <div class="seg" role="group" aria-label="Time of day">
+          <button id="modeDay" aria-pressed="true">Daytime</button>
+          <button id="modeNight" aria-pressed="false">After dark</button>
+        </div>
+        <div class="legend" aria-label="Legend">
+          <span class="lv lv-easy">Relaxed</span>
+          <span class="lv lv-sharp">Sharp</span>
+          <span class="lv lv-skip">Skip</span>
+        </div>
       </div>
-      <div class="legend" aria-label="Legend">
-        <span class="lv lv-easy">Relaxed</span>
-        <span class="lv lv-sharp">Stay sharp</span>
-        <span class="lv lv-skip">Skip</span>
-      </div>
+      <div class="chips scroll" id="mapChips" role="group" aria-label="Show on map"></div>
     </div>
     <div id="map" role="application" aria-label="Map of Manhattan with safety zones and places"></div>
     <div class="map-actions">
@@ -53,7 +56,17 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
       </button>
     </div>
+    <div class="map-cards" id="mapCards" aria-label="Places on the map"></div>
     <div class="zone-card" id="zoneCard" hidden></div>
+    <div class="map-intro" id="mapIntro" hidden>
+      <p class="eyebrow">How to read this map</p>
+      <ul>
+        <li><span class="lv lv-easy">Relaxed</span> <span class="lv lv-sharp">Stay sharp</span> <span class="lv lv-skip">Skip</span><br>Shaded areas show how each neighbourhood feels on foot. Tap one for the detail.</li>
+        <li><b>Daytime / After dark</b> follows the real time in New York — several areas change once the sun is down.</li>
+        <li><b>Swipe the cards</b> to jump between places. The gold pin is the hotel; coloured circles are your subway stations.</li>
+      </ul>
+      <button class="btn primary" data-act="introclose">Got it</button>
+    </div>
   </section>
 
   <section class="view" id="view-explore" aria-labelledby="tab-explore" hidden></section>
