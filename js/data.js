@@ -181,7 +181,7 @@ const PLACES = [
   },
   {
     id: "vessel", name: "Vessel", cat: "sights", lat: 40.7538, lng: -74.0022,
-    area: "Hudson Yards", indoor: false,
+    area: "Hudson Yards", free: true, indoor: false,
     blurb: "The copper honeycomb staircase in the middle of Hudson Yards plaza. Great to photograph from below; you can also climb it.",
     tip: "The plaza view is free and arguably the best one. Go at dusk when the lights come on.",
     when: "Plaza always open; climbing is ticketed", cost: "Free from the ground · about $10–15 to climb",
@@ -523,7 +523,7 @@ const PLACES = [
 /* ---------- Day plans ---------- */
 const DAYS = [
   {
-    date: "2026-12-09", short: "Wed", solo: true,
+    date: "2026-12-09", short: "Wed", letter: "W", color: "#b933ad", long: "Wednesday 9 December", solo: true,
     title: "Home turf", sub: "Hudson Yards, the High Line & Chelsea",
     intro: "Arrival-day pace. Everything is on foot from the hotel, there's no subway to figure out, and you finish with sunset from the 100th floor five minutes from your bed.",
     steps: [
@@ -538,7 +538,7 @@ const DAYS = [
     home: "You never leave the neighbourhood. If the walk back up from Chelsea feels long, a yellow cab to the hotel is about $12.",
   },
   {
-    date: "2026-12-10", short: "Thu", solo: true,
+    date: "2026-12-10", short: "Thu", letter: "T", color: "#0039a6", long: "Thursday 10 December", solo: true,
     title: "The Christmas one", sub: "Bryant Park, Grand Central, Fifth Avenue & the tree",
     intro: "One subway line there and back — the 7, which starts at Hudson Yards so you can't get on the wrong train. The whole route is on bright, busy streets, and it's meant to run into the evening so you see the lights.",
     steps: [
@@ -553,7 +553,7 @@ const DAYS = [
     home: "Walk down Fifth or Sixth Avenue to 42nd Street and take the 7 from 5 Av back to Hudson Yards (last stop). Don't walk west through Times Square and Port Authority.",
   },
   {
-    date: "2026-12-11", short: "Fri", solo: true,
+    date: "2026-12-11", short: "Fri", letter: "F", color: "#00838f", long: "Friday 11 December", solo: true,
     title: "Park & masterpieces", sub: "Central Park by daylight, then the Met till late",
     intro: "The park wants daylight, and the Met is open until 9 pm on Fridays — so park first, museum when it gets dark.",
     steps: [
@@ -566,7 +566,7 @@ const DAYS = [
     home: "From the Met, a cab to the hotel is the easy option (about $25–35, 20 minutes). By subway: walk east to Lexington, 4 or 5 downtown from 86 St to Grand Central, then the 7 to Hudson Yards. Don't cut back across the park.",
   },
   {
-    date: "spare", short: "Swap", solo: true,
+    date: "spare", short: "Spare", letter: "+", color: "#6e7480", long: "A spare day to swap in", solo: true,
     title: "Downtown & the bridge", sub: "9/11 Memorial, Brooklyn Bridge, DUMBO, West Village",
     intro: "A spare day to swap in if the weather's clear, or if you'd rather have skyline than museums. The bridge needs daylight and a hat.",
     steps: [
@@ -579,7 +579,7 @@ const DAYS = [
     home: "A, C or E uptown from W 4 St to 34 St–Penn Station, then 10 minutes along 34th Street — or the M34 bus if it's there.",
   },
   {
-    date: "2026-12-12", short: "Sat", solo: false,
+    date: "2026-12-12", short: "Sat", letter: "S", color: "#996633", long: "Saturday 12 December", solo: false,
     title: "Together", sub: "Save these for two",
     intro: "Things that are better — or simply easier — with company.",
     steps: [
@@ -592,7 +592,7 @@ const DAYS = [
     home: "",
   },
   {
-    date: "2026-12-13", short: "Sun", solo: false,
+    date: "2026-12-13", short: "Sun", letter: "S", color: "#ff6319", long: "Sunday 13 December", solo: false,
     title: "Last morning", sub: "One more look before the airport",
     intro: "Keep it close to the hotel so nobody's watching the clock.",
     steps: [
@@ -710,4 +710,13 @@ const STATIONS = [
   { name: "Chambers St", lines: ["A", "C"], lat: 40.7141, lng: -74.0087 },
   { name: "World Trade Center", lines: ["E"], lat: 40.7126, lng: -74.0099 },
   { name: "High St–Brooklyn Bridge", lines: ["A", "C"], lat: 40.6993, lng: -73.9905 },
+];
+
+/* ---------- Worth booking before the trip ---------- */
+const BOOK_AHEAD = [
+  { place: "edge", note: "The sunset slot on Wednesday, around 3:45 pm" },
+  { place: "radio-city", note: "Weekday daytime seats are the cheapest" },
+  { place: "lincoln-center", note: "The Nutcracker sells out close to Christmas" },
+  { place: "summit", note: "Timed entry — pick a clear-weather day" },
+  { place: "911", note: "Museum tickets are timed; the memorial is free" },
 ];

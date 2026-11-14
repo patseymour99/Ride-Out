@@ -1,48 +1,54 @@
 # Your New York
 
 A pocket guide for a solo-by-day trip to New York, 9–13 December 2026, based at
-The Set in Hudson Yards. Built to be opened on a phone.
+The Set in Hudson Yards. Built to be opened on a phone and added to the Home Screen.
 
-- **Today** — countdown before the trip, then the day's plan, daylight remaining,
-  live weather, and four big buttons: take me home, show the address to a driver,
-  send my location, call.
-- **Map** — turned so uptown is up. Only areas that need care are shaded (Stay sharp /
-  Skip), switching between daytime and after-dark guidance on their own. Labelled
-  places, her subway stations, each day's route, and the walk home after dark.
-- **Explore** — 39 places, nearest first, filterable (festive, free, indoors…), each
-  with a tip, cost, and exactly which train to take from the hotel.
-- **Safety** — how to get back to the hotel at night, six habits, area-by-area
-  notes, subway sense, common hustles, emergency numbers.
-- **Transit** — the two stations and one bus that reach everything, paying by tap,
-  reading the subway, cabs, tipping.
+## What is in it
+
+- **Today** — a countdown before the trip; during it, daylight left, weather and
+  distance home. One yellow button for directions back to the hotel, plus the hotel
+  address in large type for a driver, send-my-location and a call button. Each
+  day's plan is drawn as a subway line with its stops.
+- **Map** — turned so uptown is up. Only areas that need care are shaded
+  (Stay sharp / Skip), switching to after-dark guidance at sunset in New York.
+  Places, her subway stations, each day's route, and the walk home after dark.
+- **Places** — 39 picks grouped by neighbourhood, nearest first, with search and
+  filters. Each opens a page with a tip, cost, and which train to take from the hotel.
+- **Guide** — getting back to the hotel after dark, then short pages on staying
+  comfortable and getting around.
 
 ## Running it
 
-It's a static site with no build step. Serve the folder with anything:
+A static site with no build step:
 
 ```
 python3 -m http.server 8000
 ```
 
 Host it anywhere that serves static files over HTTPS (needed for location and
-offline support). On the phone, open the link and use **Share → Add to Home
-Screen** so it behaves like an app and opens without signal.
+offline use).
 
 ## Editing
 
-Everything on screen comes from `js/data.js`: the hotel, the places, the day
-plans, the safety zones and the tips. Zones are written in street-grid terms —
-`rect(9.5, 7.6, 36, 43)` means 9½th to 7½th Avenue, 36th to 43rd Street.
+- `js/data.js` — all content: hotel, places, day plans, safety areas, tips.
+  Areas are written in street-grid terms: `rect(9.5, 7.6, 36, 43)` means 9½th to
+  7½th Avenue, 36th to 43rd Street.
+- `js/core.js` — shared state, helpers and the page sheet.
+- `js/views.js` — the Today, Places and Guide tabs and the detail pages.
+- `js/map.js` — the map.
+- `css/style.css` — the design system; colours and type are tokens at the top.
 
-Names and a phone number are entered in the app (the person icon, top right) and
-stay on that phone.
+Names and a phone number are entered in the app and stay on that phone.
 
 ## Caveats
 
-- Opening hours, prices and holiday-market dates were checked in mid-November
-  2026 and several weren't final. Check the linked official site before
-  travelling across town for something.
-- The safety areas are broad-strokes local knowledge about how places feel on
-  foot, not crime data.
+- Opening hours, prices and holiday-market dates were checked in mid-November 2026
+  and several weren't final. Check the linked official site before crossing town.
+- The safety areas are broad-strokes local knowledge about how places feel on foot,
+  not crime data.
 
-Map: MapLibre GL (vendored) with OpenFreeMap vector tiles — no API key. Map data © OpenMapTiles, © OpenStreetMap contributors. Weather: Open-Meteo.
+## Credits
+
+Map: MapLibre GL (vendored) with OpenFreeMap vector tiles, no API key; © OpenMapTiles,
+data © OpenStreetMap contributors. Weather: Open-Meteo. Icons: Lucide (ISC).
+Type: Archivo and Inter (SIL Open Font License).

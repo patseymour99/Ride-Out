@@ -1,8 +1,8 @@
 /* Offline support: the guide itself is cached so it opens with no signal;
    map tiles are kept as they're viewed. Network-first, so updates show up at once. */
-const SHELL = "nyc-shell-v4";
+const SHELL = "nyc-shell-v5";
 const TILES = "nyc-tiles-v3";
-const FILES = ["./", "index.html", "css/style.css", "js/data.js", "js/app.js", "vendor/maplibre/maplibre-gl.js", "vendor/maplibre/maplibre-gl.css", "icons/icon.svg", "icons/icon-180.png", "manifest.webmanifest"];
+const FILES = ["./", "index.html", "css/style.css", "js/icons.js", "js/data.js", "js/core.js", "js/map.js", "js/views.js", "fonts/inter.woff2", "fonts/archivo.woff2", "vendor/maplibre/maplibre-gl.js", "vendor/maplibre/maplibre-gl.css", "icons/icon.svg", "icons/icon-180.png", "manifest.webmanifest"];
 const TILE_HOSTS = /tiles\.openfreemap\.org/;
 
 self.addEventListener("install", (e) => {
