@@ -27,17 +27,19 @@
 
     <section class="view view-map" id="view-map" aria-label="Map" hidden>
       <div id="map" role="application" aria-label="Map of Manhattan"></div>
-      <div class="map-top"><div class="chips" id="mapChips" role="group" aria-label="Show on the map"></div></div>
-      <div class="map-ctl" role="group" aria-label="Map controls">
-        <button id="locateBtn" data-act="map-locate" aria-label="Show where I am"></button>
-        <button id="homeBtn" data-act="map-home" aria-label="Centre on the hotel"></button>
-        <button id="modeBtn" data-act="map-mode" aria-label="Switch between daytime and after dark"></button>
+      <div class="map-top">
+        <button class="pill" id="filterPill" data-act="map-menu-filter" aria-haspopup="menu" aria-label="Choose what to show"></button>
+        <button class="pill" id="timePill" data-act="map-menu-time" aria-haspopup="menu" aria-label="Choose the time of day"></button>
       </div>
+      <div class="map-menu" id="mapMenu" hidden></div>
+      <button class="map-fab" id="locateBtn" data-act="map-locate" aria-label="Show where I am"></button>
       <div class="map-bottom">
-        <div class="map-legend" id="mapLegend" aria-label="Legend"></div>
+        <div class="map-foot">
+          <button class="map-legend" data-topic="method" aria-label="How the safety map works"><span class="sw sw-1"></span>Stay sharp<span class="sw sw-2"></span>Avoid</button>
+          <button class="way-home" id="wayHomeBtn" data-act="way-home"></button>
+        </div>
         <div class="map-card" id="mapCard" hidden></div>
       </div>
-      <details class="map-credit"><summary aria-label="Map data credits"></summary><p>© <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> · <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p></details>
     </section>
 
     <section class="view" id="view-places" aria-label="Places" hidden></section>
@@ -57,7 +59,9 @@
 <script src="vendor/maplibre/maplibre-gl.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/data.js"></script>
+<script src="js/streets.js"></script>
 <script src="js/core.js"></script>
+<script src="js/route.js"></script>
 <script src="js/map.js"></script>
 <script src="js/views.js"></script>
 </body>

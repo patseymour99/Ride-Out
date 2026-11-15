@@ -2,7 +2,7 @@
 App.views = (() => {
   "use strict";
   const { $, $$, esc, ic, HOTEL, LEVEL, CAT_ICON, REGIONS, store, state, SUNSET, SUNRISE, nyNow, isDarkNow, dayDiff, fmtClock, fmtSpan, tripPhase,
-    distKm, dist, distText, placeById, levelNow, hotelQuery, dirUrl, placeDir, searchUrl, telHref, bullets, lv, partnerName, toast, copy, locate, meInNYC, origin, openPage, closePage } = App;
+    distKm, dist, distText, placeById, streets, levelNow, hotelQuery, dirUrl, placeDir, searchUrl, telHref, bullets, lv, partnerName, toast, copy, locate, meInNYC, origin, openPage, closePage } = App;
 
   const head = (over, title) => `<header class="head">
       <div class="head-top"><p class="over">${over}</p><button class="round" data-act="settings" aria-label="Your details">${ic("user")}</button></div>
@@ -10,8 +10,13 @@ App.views = (() => {
     </header>`;
   const sec = (title, extra = "") => `<div class="sec-head"><h2>${title}</h2>${extra}</div>`;
 
+  // Walking time along real streets where the place is within reach on foot; miles otherwise.
+  function howFar(p, km) {
+    const from = origin(), mins = streets.minutes(from, p);
+    return mins && mins <= 60 ? { n: String(mins), unit: "min walk" } : { n: (km * 0.621).toFixed(1), unit: "miles" };
+  }
   function placeRow(p, km) {
-    const d = dist(km), level = levelNow(p);
+    const d = howFar(p, km), level = levelNow(p);
     return `<li><button class="prow" data-place="${p.id}">
         <span class="prow-ic">${ic(CAT_ICON[p.cat])}</span>
         <span class="prow-main"><b>${esc(p.name)}${state.saved.has(p.id) ? ic("heart", "saved") : ""}</b><small>${esc(CATS[p.cat].label)} · ${esc(p.area)} · ${esc(p.price)}</small>${level !== "easy" ? `<span class="prow-flag">${lv(level, isDarkNow() ? (level === "skip" ? "Not after dark" : "Stay sharp after dark") : "Stay sharp")}</span>` : ""}</span>
@@ -57,7 +62,8 @@ App.views = (() => {
       light = `<div class="brow"><span class="bl">Daylight</span><span class="bv">${value}</span><span class="bx">${extra}</span><div class="meter" role="img" aria-label="Daylight from ${fmtClock(SUNRISE)} to ${fmtClock(SUNSET)}"><span style="width:${pct}%"></span></div></div>`;
     }
     const [w1, w2] = weatherRow(t);
-    const away = meInNYC() ? `${distText(distKm(state.me, HOTEL))} away` : `${bullets(["7"])}Hudson Yards`;
+    const home = meInNYC() ? streets.route(state.me, HOTEL, streets.bandNow()) : null;
+    const away = home && home.minutes <= 60 ? `${home.minutes} min walk away` : meInNYC() ? `${distText(distKm(state.me, HOTEL))} away` : `${bullets(["7"])}Hudson Yards`;
     return `<section class="board" id="board" aria-label="Right now">
         ${light}
         <div class="brow"><span class="bl">Weather</span><span class="bv">${w1}</span><span class="bx">${w2}</span></div>
@@ -72,11 +78,11 @@ App.views = (() => {
       ? `<a class="act" href="${telHref(s.phone)}">${ic("phone")}<span>Call ${esc(s.partner || "")}</span></a>`
       : `<button class="act" data-act="settings">${ic("phone")}<span>Add a number</span></button>`;
     return `<div class="actions">
-        <a class="go-home" href="${dirUrl(hotelQuery)}" target="_blank" rel="noopener">
+        <button class="go-home" data-act="way-home">
           <span class="gh-ic">${ic("house")}</span>
-          <span class="gh-text"><b>Take me home</b><small>Directions to ${esc(HOTEL.name)} from here</small></span>
-          ${ic("arrow-up-right")}
-        </a>
+          <span class="gh-text"><b>Take me home</b><small>The safest way back to ${esc(HOTEL.name)} from here</small></span>
+          ${ic("chevron-right")}
+        </button>
         <div class="act-row">
           <button class="act" data-act="driver">${ic("car-taxi-front")}<span>Show a driver</span></button>
           <button class="act" data-act="share">${ic("send")}<span>Send location</span></button>
@@ -220,6 +226,7 @@ App.views = (() => {
     subway: { group: 0, icon: "train-front", title: "On the subway", note: "Where to stand, which car to ride" },
     hustles: { group: 0, icon: "hand", title: "Hustles to ignore", note: "The six you will actually meet" },
     help: { group: 0, icon: "siren", title: "If something goes wrong", note: "911, clinics and the nearest ER" },
+    method: { group: 0, icon: "info", title: "How the safety map works", note: "What it counts, and what it can't know" },
     stations: { group: 1, icon: "train-front", title: "Your two stations", note: "And the bus along 34th Street" },
     pay: { group: 1, icon: "credit-card", title: "Paying", note: "Tap a card or phone. $3 a ride" },
     reading: { group: 1, icon: "signpost", title: "Reading the subway", note: "Uptown, downtown, local, express" },
@@ -235,10 +242,10 @@ App.views = (() => {
         <section class="board board-home" aria-label="Getting back to the hotel after dark">
           <h2 class="board-title">${ic("moon")}Back to the hotel after dark</h2>
           <div class="brow"><span class="bl">Best</span><span class="bv">${bullets(["7"])}to Hudson Yards, the last stop. Then five minutes up Hudson Boulevard.</span></div>
-          <div class="brow"><span class="bl">On foot</span><span class="bv">Along 34th Street, which is wide and busy, then one block up 10th Avenue.</span></div>
-          <div class="brow"><span class="bl">Avoid</span><span class="bv">Walking from Times Square down 8th or 9th Avenue, or across the blocks between 36th and 41st Street.</span></div>
+          <div class="brow"><span class="bl">On foot</span><span class="bv">Tap Take me home. It picks the streets for the time of night: usually 9th or 10th Avenue, or 34th Street west of 8th.</span></div>
+          <div class="brow"><span class="bl">Avoid</span><span class="bv">42nd Street and 8th Avenue by Port Authority, 34th Street outside Penn Station, and the side streets under the tunnel ramps.</span></div>
           <div class="brow"><span class="bl">After 10 pm</span><span class="bv">A cab to the door.</span></div>
-          <button class="btn on-board" data-zone="tunnel">${ic("map")}Show me on the map</button>
+          <button class="btn on-board" data-act="way-home">${ic("route")}Take me home</button>
         </section>
         <section class="sec">${sec("Staying comfortable")}${menu(0)}</section>
         <section class="sec">${sec("Getting around")}${menu(1)}</section>
@@ -253,12 +260,25 @@ App.views = (() => {
     const over = `${ic(t.icon)}${t.group === 0 ? "Staying comfortable" : "Getting around"}`;
     let body = "";
     if (id === "habits") body = pageHead(over, "Six habits") + hpList(SAFETY_RULES, true);
+    else if (id === "method") body = pageHead(over, "How the safety map works", "Every street on the map is scored block by block, for three times of day.")
+      + hpList([
+        { h: "What it counts", p: `${streets.incidents.toLocaleString("en-GB")} incidents the NYPD recorded on the streets and in the parks of Manhattan below about 96th Street, from ${streets.span}: robbery, assault, harassment, and theft from the person. Anything indoors is left out. Incidents with a woman as the victim count for more.` },
+        { h: "What it leaves out, and why", p: "Sex offences are not on the map. To protect victims, the NYPD records them at the precinct station house rather than where they happened, so their locations say nothing about a street. Reports the police could not place are logged the same way and are removed too. Incidents inside parks are counted for the park, not the street beside it." },
+        { h: "Allowing for crowds", p: "A packed block will always record more incidents than an empty one. So each block's count is set against how busy it is, using the number of restaurants, bars, shops, hotels and theatres along it. A block is flagged when it records a lot for how busy it is." },
+        { h: "Three times of day", p: "Daytime (7 am to 4:45 pm), evening (to 10 pm) and late night are scored separately, each by the hour, so a street can be clear at lunchtime and flagged at 9 pm. The map follows the real time in New York unless you change it." },
+        { h: "Empty blocks", p: "Some blocks are flagged after dark because nobody is there, not because of incidents: the Lincoln Tunnel ramps beside the hotel, the far west waterfront, and Central Park. The incident data cannot see those, so they come from local knowledge." },
+        { h: "The walking route", p: "\"Take me home\" and each place's walking route find the safest reasonable way along real streets. After dark the route prefers main streets with open doors, goes around amber blocks when that costs little, and goes a long way round red ones. It tells you when riding is the better choice." },
+        { h: "What it can't know", p: "This is where incidents were reported, not a forecast, and not a promise about any one evening. Most flagged blocks are perfectly walkable with your wits about you. Your own judgement on the day comes first." },
+      ])
+      + `<h3 class="rule">Sources</h3><p class="fine" style="margin-top:0">NYPD Complaint Data, NYC Open Data. Street network and venues: © OpenStreetMap contributors, via OpenFreeMap and OpenMapTiles.</p>`;
     else if (id === "subway") body = pageHead(over, "On the subway", "The subway is how New Yorkers get around, and by day it is busy and fine. A few habits make it easier.") + `<ul class="ticks">${SAFETY_SUBWAY.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`;
     else if (id === "hustles") body = pageHead(over, "Hustles to ignore", "None of these are dangerous. They cost money and time, and a flat “no thanks” without stopping ends all of them.") + hpList(SCAMS);
     else if (id === "areas") {
       const dark = isDarkNow();
-      const group = (level) => ZONES.filter((z) => z.night === level).map((z) => `<li><button class="mrow" data-zone="${z.id}"><span class="mrow-main"><b>${esc(z.name)}</b><small>By day: ${LEVEL[z.day]}</small></span>${ic("chevron-right", "chev")}</button></li>`).join("");
+      const stat = (z) => { const st = streets.zone(z.id); return st && st.tier != null ? ` · ${st.eve + st.late} incidents after dark` : ""; };
+      const group = (level) => ZONES.filter((z) => z.night === level).map((z) => `<li><button class="mrow" data-zone="${z.id}"><span class="mrow-main"><b>${esc(z.name)}</b><small>By day: ${LEVEL[z.day]}${stat(z)}</small></span>${ic("chevron-right", "chev")}</button></li>`).join("");
       body = pageHead(over, "Area by area", `Grouped by how each area feels after dark. It is ${dark ? "dark" : "daylight"} in New York right now. Tap an area to see it on the map.`)
+        + `<p class="fine" style="margin-top:12px">Incident counts are NYPD street reports for ${streets.span}. <button class="link" data-topic="method">How this is worked out</button></p>`
         + `<h3 class="grp">${lv("skip", "Skip after dark")}<span>Go round, go under, or take a cab</span></h3><ul class="menu">${group("skip")}</ul>`
         + `<h3 class="grp">${lv("sharp")}<span>Fine. Bag closed, main streets, don't linger</span></h3><ul class="menu">${group("sharp")}</ul>`
         + `<h3 class="grp">${lv("easy")}<span>Busy and comfortable into the evening</span></h3><ul class="menu">${group("easy")}</ul>`;
@@ -286,7 +306,7 @@ App.views = (() => {
   function openPlace(id) {
     const p = placeById[id];
     if (!p) return;
-    const z = p.zone, d = dist(distKm(origin(), p)), isSaved = state.saved.has(p.id), now = levelNow(p);
+    const z = p.zone, d = howFar(p, distKm(origin(), p)), isSaved = state.saved.has(p.id), now = levelNow(p);
     const body = `
       <p class="over">${ic(CAT_ICON[p.cat])}${esc(CATS[p.cat].label)} · ${esc(p.area)}</p>
       <h2 class="page-title" id="pageTitle">${esc(p.name)}</h2>
@@ -308,11 +328,24 @@ App.views = (() => {
       ${z ? `<h3 class="rule">The area</h3>
         <p class="area-name">${esc(z.name)}</p>
         <p class="area-lv"><span>By day ${lv(z.day)}</span><span>After dark ${lv(z.night)}</span></p>
-        <p class="area-note">${esc(z.note)}</p>` : ""}`;
+        <p class="area-note">${esc(z.note)}</p>
+        ${parkStat(p)}${areaStat(z)}` : ""}`;
     const bar = `<button class="btn sq${isSaved ? " saved" : ""}" data-save="${p.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove from saved" : "Save this place"}">${ic("heart")}</button>
       <button class="btn" data-showmap="${p.id}">${ic("map")}Map</button>
       <a class="btn primary grow" href="${placeDir(p)}" target="_blank" rel="noopener">${ic("navigation")}Directions</a>`;
     openPage({ body, bar, label: p.name });
+  }
+
+  function parkStat(p) {
+    const k = streets.park(p.id);
+    if (!k) return "";
+    const theft = k.theft >= k.n / 3 ? ", about half of them thefts" : "";
+    return `<p class="area-stat"><b>In the park itself:</b> ${k.n} incidents recorded in the past year${theft}, ${k.dark} of them after dark.</p>`;
+  }
+  function areaStat(z) {
+    const st = streets.zone(z.id);
+    if (!st || st.tier == null) return "";
+    return `<p class="area-stat">${st.eve + st.late} street incidents were recorded here after dark in the past year, ${["fewer than most areas", "about typical for Manhattan", "more than most areas"][st.tier]} for its size. <button class="link" data-topic="method">How this is worked out</button></p>`;
   }
 
   function openDriver() {
@@ -341,7 +374,7 @@ App.views = (() => {
         </form>
         <p class="fine">It also helps to share your live location for the day in WhatsApp, Google Maps or Find My. It updates on its own while you walk.</p>
         <h3 class="rule">About this guide</h3>
-        <p class="fine">Map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Weather: Open-Meteo. Icons: Lucide. Type: Archivo and Inter. Opening hours and prices were checked in November 2026 and can change, so check the linked site before crossing town for something.</p>`,
+        <p class="fine">Map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Street safety: NYPD Complaint Data from NYC Open Data. Weather: Open-Meteo. Icons: Lucide. Type: Archivo and Inter. Opening hours and prices were checked in November 2026 and can change, so check the linked site before crossing town for something.</p>`,
     });
   }
 
@@ -382,7 +415,7 @@ App.views = (() => {
   }
 
   function onClick(e) {
-    const t = e.target.closest("[data-view],[data-place],[data-save],[data-day],[data-filter],[data-mapfilter],[data-mapstep],[data-topic],[data-zone],[data-check],[data-showmap],[data-act]");
+    const t = e.target.closest("[data-view],[data-place],[data-save],[data-day],[data-filter],[data-mapfilter],[data-mapband],[data-maproute],[data-mapstep],[data-topic],[data-zone],[data-check],[data-showmap],[data-act]");
     if (!t) return;
     const d = t.dataset;
     if (d.check) {
@@ -399,6 +432,8 @@ App.views = (() => {
     if (d.day) { state.dayIndex = Number(d.day); return renderToday(); }
     if (d.filter) { pFilter = d.filter; renderPlaceChips(); return renderPlaceList(); }
     if (d.mapfilter) return App.map.setFilter(d.mapfilter);
+    if (d.mapband) return App.map.setBand(d.mapband);
+    if (d.maproute) return App.map.routeToPlace(d.maproute);
     if (d.mapstep) return App.map.step(Number(d.mapstep));
     switch (d.act) {
       case "close": return closePage();
@@ -411,8 +446,9 @@ App.views = (() => {
       case "map-card-close": return App.map.deselect();
       case "map-intro-done": return App.map.introDone();
       case "map-locate": return App.map.locateMe();
-      case "map-home": return App.map.goHome();
-      case "map-mode": return App.map.toggleMode();
+      case "map-menu-filter": return App.map.openMenu("filter");
+      case "map-menu-time": return App.map.openMenu("time");
+      case "way-home": return App.map.wayHome();
     }
   }
   function onSubmit(e) {
@@ -429,9 +465,8 @@ App.views = (() => {
   function boot() {
     $("#tabs").innerHTML = TABS.map(([id, label, icon]) => `<button data-view="${id}">${ic(icon)}<span>${label}</span></button>`).join("");
     $("#locateBtn").innerHTML = ic("locate-fixed");
-    $("#homeBtn").innerHTML = ic("house");
+    $("#wayHomeBtn").innerHTML = `${ic("house")}<span>Take me home</span>`;
     $("#pageClose").innerHTML = ic("x");
-    $(".map-credit summary").innerHTML = ic("info");
     document.addEventListener("click", onClick);
     document.addEventListener("submit", onSubmit);
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePage(); });
@@ -448,6 +483,6 @@ App.views = (() => {
     if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
   }
 
-  return { boot, show, openPlace, openDriver, defaultDayIndex };
+  return { boot, show, openPlace, openDriver, openTopic, defaultDayIndex };
 })();
 App.views.boot();

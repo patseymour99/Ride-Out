@@ -42,22 +42,22 @@ const ZONES = [
   {
     id: "home", name: "Hudson Yards (home turf)", day: "easy", night: "easy",
     poly: rect(12.7, 9.5, 29.5, 36),
-    note: "New, bright, privately patrolled and busy until the shops close around 8–9 pm. The hotel's own block on 10th Avenue is quiet at night but fine — walk home along 34th Street or through the park on Hudson Boulevard.",
+    note: "New, bright, privately patrolled and busy until the shops close around 8–9 pm. Almost nothing is recorded on these streets. The hotel's own block on 10th Avenue is quiet at night but fine: come home along 34th Street west of 9th Avenue, or through the park on Hudson Boulevard.",
   },
   {
     id: "tunnel", name: "Lincoln Tunnel blocks", day: "easy", night: "skip",
     poly: rect(12.2, 9.5, 36, 43),
-    note: "Directly north of the hotel: tunnel ramps, bus garages and long blank blocks. Dull but harmless by day. After dark there is nobody about, so don't walk through here to or from Times Square — take the 7 train one stop, or a cab.",
+    note: "Directly north of the hotel: tunnel ramps, bus garages and long blank blocks. Few incidents are recorded here because few people are here. Dull but harmless by day. After dark the side streets are empty, so stay on 10th Avenue itself, or take the 7 train one stop.",
   },
   {
     id: "pabt", name: "Port Authority & 8th Avenue", day: "sharp", night: "skip",
     poly: rect(9.5, 7.6, 36, 43),
-    note: "The bus terminal and the 8th Avenue blocks around it are the scruffiest part of Midtown: people asking for money, some erratic behaviour. Walk through with purpose by day; after dark go around it or under it (the 7 train).",
+    note: "The bus terminal and the blocks around it are the scruffiest part of Midtown. 8th Avenue outside the terminal and 42nd Street beside it are flagged on the map evening and night: 44 street incidents after dark in the past year on three blocks of 8th Avenue alone. Walk through with purpose by day; after dark go around it, or under it on the 7 train.",
   },
   {
     id: "penn", name: "Penn Station & Herald Square", day: "sharp", night: "sharp",
     poly: rect(9.5, 6.4, 29.5, 36),
-    note: "Very busy at all hours, which keeps it safe, but it attracts hustlers and people in a bad way — especially 7th and 8th Avenues right by the station. 34th Street itself is your main walking corridor home and is fine. Late at night, take a cab instead.",
+    note: "Busy at all hours, and the records show it. 34th Street between Macy's and Penn Station, and 7th Avenue outside the station, are among the most-reported blocks in Midtown after dark. Walk through with purpose and your phone away. West of 8th Avenue, 34th Street calms down at once and is your clean way home.",
   },
   {
     id: "garment", name: "Garment District", day: "easy", night: "sharp",
@@ -67,12 +67,12 @@ const ZONES = [
   {
     id: "tsq", name: "Times Square", day: "sharp", night: "sharp",
     poly: rect(7.6, 6.3, 40, 50),
-    note: "Packed day and night, so the risk here is your wallet, not you. Costumed characters, 'free' CD sellers and bracelet-tying 'monks' all want cash — don't take anything handed to you and keep walking. Bag zipped and in front.",
+    note: "Seventh Avenue and Broadway through Times Square record more street incidents than anywhere else on this map, day and night, because of the sheer crowds: 127 after dark in the past year. The risk is your wallet and phone, not you. Costumed characters and CD sellers all want cash, so take nothing handed to you. See it, photograph it, and walk the avenues either side.",
   },
   {
-    id: "hk", name: "Theater District & Hell's Kitchen", day: "easy", night: "easy",
+    id: "hk", name: "Theater District & Hell's Kitchen", day: "easy", night: "sharp",
     poly: rect(10.5, 7.6, 43, 59.3),
-    note: "Broadway theatres and 9th Avenue's long strip of restaurants. Lively until late with theatre crowds. Stay on 8th–9th Avenue rather than drifting further west at night.",
+    note: "Broadway theatres and 9th Avenue's long strip of restaurants, lively with theatre crowds through the evening. Most of what is recorded here happens late at night around the bars on 9th Avenue and on 8th Avenue. Dinner and a show are comfortable; after about 10 pm, ride home.",
   },
   {
     id: "hkwest", name: "Far West Side (waterfront)", day: "easy", night: "sharp",
@@ -82,12 +82,12 @@ const ZONES = [
   {
     id: "midtown", name: "Midtown — Fifth Ave, Rockefeller, Bryant Park", day: "easy", night: "easy",
     poly: rect(6.3, 3, 40, 59),
-    note: "The Christmas heart of the city. Crowded, bright and heavily policed well into the evening. Watch your bag in the crush around the tree and the markets.",
+    note: "The Christmas heart of the city. Crowded, bright and heavily policed well into the evening. Fifth Avenue by Rockefeller Center is flagged for pickpocketing, so keep your bag closed in the crush around the tree and the markets.",
   },
   {
     id: "nomad", name: "Murray Hill, NoMad & Koreatown", day: "easy", night: "easy",
     poly: rect(6.4, 3, 23, 40),
-    note: "Empire State Building, Koreatown's late-night restaurants on 32nd Street, the Morgan Library. Comfortable day and evening.",
+    note: "Empire State Building, Koreatown's restaurants on 32nd Street, the Morgan Library. Comfortable day and evening. 32nd Street gets rowdy late at night when the bars empty.",
   },
   {
     id: "chelsea", name: "Chelsea, High Line & Meatpacking", day: "easy", night: "easy",
@@ -97,7 +97,7 @@ const ZONES = [
   {
     id: "flatiron", name: "Flatiron, Union Square & Gramercy", day: "easy", night: "easy",
     poly: rect(6.4, 3, 14, 23),
-    note: "Shopping, Eataly, the holiday market. Busy into the evening. Union Square park itself gets a bit ragged late at night — the streets around it are fine.",
+    note: "Shopping, Eataly, the holiday market. Busy into the evening. 14th Street along the bottom of Union Square is the one stretch flagged after dark; the park itself gets ragged late at night.",
   },
   {
     id: "park", name: "Central Park", day: "easy", night: "skip",
@@ -117,7 +117,7 @@ const ZONES = [
   {
     id: "village", name: "West Village & Greenwich Village", day: "easy", night: "easy",
     poly: [[40.7428, -74.0125], [40.7373, -73.9968], [40.7347, -73.9907], [40.7255, -73.9968], [40.7285, -74.0025], [40.7290, -74.0125]],
-    note: "Crooked little streets, cafés and boutiques, busy with people eating out until late. Washington Square Park is lovely by day; skip the park itself after dark and walk the streets around it.",
+    note: "Crooked little streets, cafés and boutiques, busy with people eating out until late. Washington Square Park is lovely by day, but it records more incidents than any street around it after dark, so walk round it at night.",
   },
   {
     id: "eastvillage", name: "East Village", day: "easy", night: "sharp",
@@ -576,7 +576,7 @@ const DAYS = [
       { time: "2:00", place: "west-village", text: "A or C from High St back into Manhattan, off at W 4 St. Wander the West Village while it's still light." },
       { time: "4:00", place: "washington-square", text: "The arch and its tree at dusk, then hot chocolate somewhere on Bleecker Street." },
     ],
-    home: "A, C or E uptown from W 4 St to 34 St–Penn Station, then 10 minutes along 34th Street — or the M34 bus if it's there.",
+    home: "A, C or E uptown from W 4 St to 34 St–Penn Station. Leave by the 8th Avenue exits and walk west along 34th Street, away from the station: ten minutes, or the M34 bus if it's there.",
   },
   {
     date: "2026-12-12", short: "Sat", letter: "S", color: "#996633", long: "Saturday 12 December", solo: false,

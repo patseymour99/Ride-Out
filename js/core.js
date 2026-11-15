@@ -114,11 +114,11 @@ const App = (() => {
   }
 
   /* ---------- location ---------- */
-  function locate(onDone, quiet) {
-    if (!navigator.geolocation) { if (!quiet) toast("This phone isn't sharing its location."); return; }
+  function locate(onDone, quiet, onFail) {
+    if (!navigator.geolocation) { if (!quiet) toast("This phone isn't sharing its location."); onFail && onFail(); return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => { state.me = { lat: pos.coords.latitude, lng: pos.coords.longitude }; onDone && onDone(state.me); },
-      () => { if (!quiet) toast("Couldn't find you. Check that location is allowed for this site."); },
+      () => { if (!quiet) toast("Couldn't find you. Check that location is allowed for this site."); onFail && onFail(); },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
     );
   }
